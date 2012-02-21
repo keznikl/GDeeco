@@ -9,6 +9,11 @@ import groovyx.gpars.actor.Actor
 import groovyx.gpars.actor.BlockingActor;
 import groovyx.gpars.actor.DefaultActor
 
+import javax.swing.JFrame;
+import javax.swing.JLabel
+
+import java.awt.Color;
+import java.awt.GridLayout;
 class KnowledgeListener {
 	Actor actor
 	List fields
@@ -146,14 +151,36 @@ class IProcess {
 	Map schedData = [:]
 }
 
+import groovy.swing.SwingBuilder
+import javax.swing.BorderFactory
+import java.awt.BorderLayout as BL
 
-
-class Framework { 
-	def framework = new TriggeredProcessActor(
-		func: this.&FrameworkF,
-		inMapping: ["root"],
-		outMapping: []
-	).start()
+class Framework extends TriggeredProcessActor {
+	def visualisation
+	
+	public Framework() {
+		super()
+		func = this.&FrameworkF
+		inMapping = ["root"]
+		outMapping = []				
+		
+		visualisation = new Visualisation().start()
+		
+		start()
+	}
+	
+	
+	
+	private FrameworkF(component) {
+		System.out.println("Framework update of ${component.id}")				
+	}
+	
+	def runComponents(List c) {
+		def startedActors = []
+		for (r in c)
+			startedActors.addAll(runComponent(r))
+		return startedActors
+	}
 	
 	def runComponent(Map r) {
 		def startedActors = []
@@ -163,7 +190,8 @@ class Framework {
 			knowledge: r
 		).start()
 		
-		k.registerListener([actor: framework, fields: framework.inMapping] as KnowledgeListener)
+		k.registerListener([actor: this, fields: inMapping] as KnowledgeListener)
+		k.registerListener([actor: visualisation, fields: visualisation.inMapping] as KnowledgeListener)
 		
 		startedActors.add(k)
 		
@@ -194,7 +222,5 @@ class Framework {
 		return startedActors
 	}
 	
-	private FrameworkF(component) {
-		System.out.println("Framework update of ${component.id}")
-	}
+	
 }

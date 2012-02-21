@@ -46,38 +46,24 @@ robot = [
 			func: this.&RobotStepF,
 			inMapping: ["nextPosition", "path"],
 			outMapping: ["position", "path"],
-			schedData: [sleepTime: 1000]),
-		
+			schedData: [sleepTime: 1000]),		
 	]
 ]
 
-
-
+robot2 = robot.clone()
+robot2.id = "R2"
+robot2.position = [x: 5, y: 1] as IPosition
+robot2.nextPosition = [x: 5, y: 2] as IPosition
+robot2.path = [[x: 5, y: 2] as IPosition, [x:5, y:3] as IPosition, [x:6, y:3] as IPosition, [x:7, y:3] as IPosition]
+robot2.processes = robot.processes.clone()
+robot2.processes.step = new IProcess(
+								schedType: SchedType.PROCESS_PERIODIC,
+								func: this.&RobotStepF,
+								inMapping: ["nextPosition", "path"],
+								outMapping: ["position", "path"],
+								schedData: [sleepTime: 600])		
 
 
 
 def f = new Framework()
-f.runComponent(robot)*.join()
-
-//def k = new KnowledgeActor(
-//	name:"R1", 
-//	knowledge:robot
-//).start()
-//
-//def logProcess = new TriggeredProcessActor(
-//	func: this.&LogPosition, 
-//	inMapping: ["id", "position"], 
-//	outMapping: []
-//).start()
-//
-//k.registerListener([actor: logProcess as Actor, fields: logProcess.inMapping as List] as KnowledgeListener)
-//
-//def stepProcess = new PeriodicProcessActor(
-//	func: this.&RobotStepF, 
-//	inMapping: ["position", "path"], 
-//	outMapping: ["position", "path"], 
-//	knowledgeActor: k, 
-//	sleepTime: 1000
-//).start()
-
-//[k, logProcess, stepProcess]*.join()
+f.runComponents([robot, robot2])*.join()
