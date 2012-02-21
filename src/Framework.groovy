@@ -151,9 +151,6 @@ class IProcess {
 	Map schedData = [:]
 }
 
-import groovy.swing.SwingBuilder
-import javax.swing.BorderFactory
-import java.awt.BorderLayout as BL
 
 class Framework extends TriggeredProcessActor {
 	def visualisation
@@ -164,7 +161,7 @@ class Framework extends TriggeredProcessActor {
 		inMapping = ["root"]
 		outMapping = []				
 		
-		visualisation = new Visualisation().start()
+		visualisation = new Visualisation()
 		
 		start()
 	}

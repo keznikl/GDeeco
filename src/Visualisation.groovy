@@ -1,5 +1,12 @@
 import groovy.swing.SwingBuilder
 import java.util.List;
+import javax.swing.BorderFactory
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+
+import java.awt.BorderLayout as BL
+import java.awt.Color;
+
 
 
 public class Visualisation extends TriggeredProcessActor {
