@@ -42,7 +42,7 @@ public class Visualisation extends TriggeredProcessActor {
 	
 	private animate(component) {
 		new SwingBuilder().edt {
-			def id = component.id.toString()
+			def id = component.id.first().toString()
 			def col = component.position.x.first() - 1
 			def row = component.position.y.first() - 1
 			textlabels.each{
