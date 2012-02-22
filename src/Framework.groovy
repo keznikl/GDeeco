@@ -229,11 +229,15 @@ class Framework extends DefaultActor {
 									def cd = componentData[c]
 									def md = componentData[m]					
 									if (e.membership(cd, md)) {
-										if (!runningEnsembles.containsKey(e))
-											runningEnsembles[e]= runEnsemble(e, c, m)
+										if (runningEnsembles[c] == null)
+											runningEnsembles[c] = [:]
+										if (runningEnsembles[c][m] == null)
+											runningEnsembles[c][m] = [:]
+										if (runningEnsembles[c][m][e] == null)
+											runningEnsembles[c][m][e] = runEnsemble(e, c, m)
 									} else {
-										runningEnsembles[e]?.stop()
-										runningEnsembles.remove(e)
+										runningEnsembles.get(c)?.get(m)?.get(e)?.stop()
+										runningEnsembles.get(c)?.get(m)?.remove(e)
 									}
 								}
 							}

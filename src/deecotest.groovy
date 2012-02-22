@@ -51,18 +51,19 @@ def robot = [
 	]
 ]
 
-//robot2 = robot.clone()
-//robot2.id = "R2"
-//robot2.position = [x: 5, y: 1] as IPosition
-//robot2.nextPosition = [x: 5, y: 2] as IPosition
-//robot2.path = [[x: 5, y: 2] as IPosition, [x:5, y:3] as IPosition, [x:6, y:3] as IPosition, [x:7, y:3] as IPosition]
-//robot2.processes = robot.processes.clone()
-//robot2.processes.step = new IProcess(
-//								schedType: SchedType.PROCESS_PERIODIC,
-//								func: this.&RobotStepF,
-//								inMapping: ["nextPosition", "path"],
-//								outMapping: ["position", "path"],
-//								schedData: [sleepTime: 600])		
+robot2 = robot.clone()
+robot2.id = "R2"
+robot2.position = [x: 5, y: 1] as IPosition
+robot2.nextPosition = [x: 5, y: 1] as IPosition
+robot2.nextPositionAlongPath = [x: 5, y: 2] as IPosition
+robot2.path = [[x: 5, y: 2] as IPosition, [x:5, y:3] as IPosition, [x:6, y:3] as IPosition, [x:7, y:3] as IPosition]
+robot2.processes = robot.processes.clone()
+robot2.processes.step = new IProcess(
+								schedType: SchedType.PROCESS_PERIODIC,
+								func: this.&RobotStepF,
+								inMapping: ["nextPosition", "path"],
+								outMapping: ["position", "path"],
+								schedData: [sleepTime: 600])		
 
 
 def IRobot = ["id", "nextPosition"]
@@ -84,4 +85,4 @@ def robotEnsemble = [
 
 def f = new Framework()
 f.registerEnsemble(robotEnsemble)
-f.runComponents([robot])*.join()
+f.runComponents([robot, robot2])*.join()
