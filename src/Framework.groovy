@@ -72,13 +72,13 @@ class KnowledgeActor extends DefaultActor {
 				if (msg instanceof Map)
 					processChangeSet(msg as Map)
 				else if (msg instanceof ReqDataMessage)
-					processDataRequest(sender, ((ReqDataMessage)msg).fields)
+					processDataRequest(((ReqDataMessage)msg).reply, ((ReqDataMessage)msg).fields)
 				else
 					System.err.println("Unknown message: " + msg.toString());
 				
 			}
 		}
-	}
+	} 
 }
 
 
@@ -111,7 +111,53 @@ class TriggeredProcessActor extends DefaultActor {
 	}
 }
 
+class EnsembleActor extends DefaultActor {
+	def Closure mapping	
+	def List coordinatorInterface
+	def List memberInterface
+	def KnowledgeActor coordinatorKnowledge
+	def KnowledgeActor memberKnowledge	 
+	
+	def Map coordinatorArg = [:]
+	def Map memberArg = [:]
+
+	public void afterStart() {
+		coordinatorKnowledge.registerListener([actor: this, fields: coordinatorInterface] as KnowledgeListener)
+		memberKnowledge.registerListener([actor: this, fields: memberInterface] as KnowledgeListener)
+		
+		coordinatorKnowledge.send new ReqDataMessage(reply:this, fields: coordinatorInterface)
+		memberKnowledge.send new ReqDataMessage(reply:this, fields: memberInterface)
+	}
+	
+	void act() {
+		loop {
+			react { Map component ->
+				
+				if (component.keySet().equals(coordinatorInterface.toSet())) {
+					coordinatorArg = component
+				}
+				if (component.keySet().equals(memberInterface.toSet())) {
+					memberArg = component
+				}
+				
+				if (coordinatorArg==[:] || memberArg==[:]) {
+					return
+				}
+				
+				def coordinatorResult
+				def memberResult
+				
+				(coordinatorResult, memberResult) = mapping(coordinatorArg, memberArg)
+				
+				coordinatorKnowledge.send coordinatorResult
+				memberKnowledge.send memberResult				
+			}
+		}
+	}
+}
+
 class ReqDataMessage {
+	def Actor reply
 	def List fields
 }
 
@@ -124,7 +170,7 @@ class PeriodicProcessActor extends BlockingActor{
 
 	void act() {
 		while (true) {
-			knowledgeActor.send new ReqDataMessage(fields: inMapping)
+			knowledgeActor.send new ReqDataMessage(reply: this, fields: inMapping)
 			def args = receive()
 			def argList = []
 			for (key in inMapping)
@@ -152,25 +198,53 @@ class IProcess {
 }
 
 
-class Framework extends TriggeredProcessActor {
+class Framework extends DefaultActor {
 	def visualisation
+	def List ensembles = []
+	def Map runningEnsembles = [:]
+	def List components = []
+	def Map componentData = [:]
+	def inMapping = ["root"]
 	
 	public Framework() {
-		super()
-		func = this.&FrameworkF
-		inMapping = ["root"]
-		outMapping = []				
+		super()						
 		
-		visualisation = new Visualisation()
-		
+		visualisation = new Visualisation()		
 		start()
 	}
 	
-	
-	
-	private FrameworkF(component) {
-		System.out.println("Framework update of ${component.id}")				
+	void act() {
+		loop {
+			react { Map component ->	
+				component = component.root			
+				System.out.println("Framework update of ${component.id}")
+				
+				componentData[sender] = component				
+				
+				components.each {c->
+					if (componentData.containsKey(c)) {
+						components.each {m->
+							if (componentData.containsKey(m)) {
+								ensembles.each {e->		
+									def cd = componentData[c]
+									def md = componentData[m]					
+									if (e.membership(cd, md)) {
+										if (!runningEnsembles.containsKey(e))
+											runningEnsembles[e]= runEnsemble(e, c, m)
+									} else {
+										runningEnsembles[e]?.stop()
+										runningEnsembles.remove(e)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
+	
+
 	
 	def runComponents(List c) {
 		def startedActors = []
@@ -191,6 +265,7 @@ class Framework extends TriggeredProcessActor {
 		k.registerListener([actor: visualisation, fields: visualisation.inMapping] as KnowledgeListener)
 		
 		startedActors.add(k)
+		components.add(k)		
 		
 		for (p in r.processes) {
 			IProcess pr = p.value
@@ -215,8 +290,26 @@ class Framework extends TriggeredProcessActor {
 			} else {
 				System.err.println("Unknown process type ${pr.schedType} for process ${p.key}");
 			}
-		}
+		}		
+				
+		k.send new ReqDataMessage(reply: this, fields: inMapping)
+		
 		return startedActors
+	}
+	
+	private def runEnsemble(Map e, KnowledgeActor coordinator, KnowledgeActor member) {
+		def actor = new EnsembleActor(
+			mapping: e.mapping,
+			coordinatorInterface: e.coordinator,
+			memberInterface: e.member,
+			coordinatorKnowledge: coordinator,
+			memberKnowledge: member
+		).start()
+		return actor		
+	}
+	
+	def registerEnsemble(Map e) {
+		ensembles.add(e)
 	}
 	
 	
