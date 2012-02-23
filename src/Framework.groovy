@@ -221,13 +221,14 @@ class Framework extends DefaultActor {
 				componentData[sender] = component				
 				
 				components.each {c->
-					if (componentData.containsKey(c)) {
+					if (componentData.containsKey(c)) {						
 						components.each {m->
 							if (componentData.containsKey(m)) {
 								ensembles.each {e->		
 									def cd = componentData[c]
-									def md = componentData[m]					
-									if (e.membership(cd, md)) {
+									def md = componentData[m]									
+									
+									if (hasInterface(cd, e.coordinator) && hasInterface(md, e.member) && e.membership(cd, md)) {
 										if (runningEnsembles[c] == null)
 											runningEnsembles[c] = [:]
 										if (runningEnsembles[c][m] == null)
@@ -252,7 +253,12 @@ class Framework extends DefaultActor {
 		}
 	}
 	
-
+	def hasInterface(Map c, List i) {
+		if (c!= null && i != null) {						
+			return c.keySet().containsAll(i.toSet())
+		} else
+			return false
+	}
 	
 	def runComponents(List c) {
 		def startedActors = []
