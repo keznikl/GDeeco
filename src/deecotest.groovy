@@ -60,10 +60,10 @@ def LogPosition(id, position) { System.out.println("Position for $id updated to:
 
 def robot = [
     id: "R1",
-    position: [x: 3, y: 5] as IPosition,
-	nextPosition: [x: 3, y: 5] as IPosition,
-	nextPositionAlongPath: [x: 4, y: 5] as IPosition,
-    path: waypointsToPath([[x: 4, y: 5] as IPosition, [x:10, y:5] as IPosition]), 
+    position: new IPosition(x: 3, y: 6) ,
+	nextPosition: new IPosition(x: 3, y: 6),
+	nextPositionAlongPath: new IPosition(x: 4, y: 6),
+    path: waypointsToPath([new IPosition(x: 4, y: 6), new IPosition(x: 10, y: 6)]), 
 	processes: [		
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
@@ -86,10 +86,10 @@ def robot = [
 
 def robot2 = [
 	id: "R2",
-	position: [x: 5, y: 1] as IPosition,
-	nextPosition: [x: 5, y: 1] as IPosition,
-	nextPositionAlongPath: [x: 5, y: 2] as IPosition,
-	path: waypointsToPath([[x: 5, y: 2] as IPosition, [x:5, y:10] as IPosition]),
+	position: new IPosition(x: 5, y: 2),
+	nextPosition: new IPosition(x: 5, y: 2),
+	nextPositionAlongPath: new IPosition(x: 5, y: 2),
+	path: waypointsToPath([new IPosition(x: 5, y: 2), new IPosition(x: 5, y: 10)]),
 	processes: [
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
@@ -110,6 +110,25 @@ def robot2 = [
 	]
 ]
 
+
+
+def IRobot = ["id", "nextPosition"]
+def IRobotDrive = ["id", "nextPositionAlongPath"]
+
+def robotEnsemble = [
+	id: "robotEnsemble",
+	coordinator: IRobotDrive,
+	member: IRobot,
+	membership: {coordinator, member -> 
+		coordinator.id.toString().equals(member.id.toString())
+	},
+	mapping: {coordinator, member ->
+		member.nextPosition = coordinator.nextPositionAlongPath
+		return [coordinator, member]
+	},
+	priority: {other -> false}
+]
+
 def CrossingLogF(id, Map robots, Map nextPositions) {
 	System.out.println("Crossing ${id} update: robots=$robots, nextPositions=$nextPositions");
 }
@@ -120,10 +139,10 @@ def CrossingDriveF(robots) {
 
 crossing = [
 	id: "C1",
-	area: crossingArea([x: 3, y: 3] as IPosition, [x: 7, y: 7] as IPosition),
+	area: crossingArea(new IPosition(x: 4, y: 4), new IPosition(x: 7, y: 7)),
 	robots: [:],
-	nextPositions: [:],	
-	processes: [		
+	nextPositions: [:],
+	processes: [
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
 			func: this.&CrossingDriveF,
@@ -137,25 +156,39 @@ crossing = [
 	],
 ]
 
-
-def IRobot = ["id", "nextPosition"]
-def IRobotDrive = ["id", "nextPositionAlongPath"]
-
-def RobotMembershipF(coordinator, member ) {
-	coordinator.id.toString().equals(member.id.toString())
+def positionInArea(IPosition position, List area) {
+	def ret = false
+	area.each {p ->
+		if (p.equals(position))
+			ret = true		
+	}
+	return ret
 }
+def ICrossing = ["robots", "nextPositions", "area"]
+def ICrossingRobot = ["id", "position"]
 
-def robotEnsemble = [
-	id: "robotEnsemble",
-	coordinator: IRobotDrive,
-	member: IRobot,
-	membership: this.&RobotMembershipF,
+def crossingEnsemble = [
+	id: "crossingEnsemble",
+	coordinator: ICrossing,
+	member: ICrossingRobot,
+	membership: {coordinator, member ->
+		positionInArea(member.position, coordinator.area)
+	},
 	mapping: {coordinator, member ->
-		member.nextPosition = coordinator.nextPositionAlongPath
+		coordinator.robots[member.id] = member.position 
+		if (coordinator.nextPositions[member.id] != null)
+			member.nextPosition = coordinator.nextPositions[member.id]
+		
 		return [coordinator, member]
 	},
+	priority: {other -> true}	
 ]
+
 
 def f = new Framework()
 f.registerEnsemble(robotEnsemble)
-f.runComponents([robot, robot2, crossing])*.join()
+f.registerEnsemble(crossingEnsemble)
+actors = f.runComponents([robot, robot2, crossing])
+actors*.start()
+f.start()
+actors*.join()

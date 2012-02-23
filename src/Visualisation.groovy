@@ -58,11 +58,11 @@ public class Visualisation extends TriggeredProcessActor {
 				def br = component.area.first().last()
 				
 				(0..9).each { i ->
-					((tl.y+1)..<(br.y-1)).each {row->
+					((tl.y+1)..(br.y-1)).each {row->
 						toClear.add(textlabels.get(row*rows+i))
 						toClear.add(textlabels.get(row*rows+i))
 					}
-					((tl.x+1)..<(br.x-1)).each {col->
+					((tl.x+1)..(br.x-1)).each {col->
 						toClear.add(textlabels.get(i*rows+col))
 						toClear.add(textlabels.get(i*rows+col))
 					}
