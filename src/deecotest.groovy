@@ -57,13 +57,13 @@ def RobotDriveF(List path) {
 def LogPosition(id, position) { System.out.println("Position for $id updated to: [${position.x}, ${position.y}]");}
 
 
-
+def r1Path = waypointsToPath([new IPosition(x: 2, y: 9), new IPosition(x: 10, y: 9)]) 
 def robot = [
     id: "R1",
-    position: new IPosition(x: 3, y: 6) ,
-	nextPosition: new IPosition(x: 3, y: 6),
-	nextPositionAlongPath: new IPosition(x: 4, y: 6),
-    path: waypointsToPath([new IPosition(x: 4, y: 6), new IPosition(x: 10, y: 6)]), 
+    position: r1Path.first() ,
+	nextPosition: r1Path.first(),
+	nextPositionAlongPath: r1Path.drop(1).first(),
+    path: r1Path.drop(1), 
 	processes: [		
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
@@ -84,12 +84,13 @@ def robot = [
 	]
 ]
 
+def r2Path = waypointsToPath([new IPosition(x: 6, y: 2), new IPosition(x: 6, y: 12)])
 def robot2 = [
 	id: "R2",
-	position: new IPosition(x: 5, y: 2),
-	nextPosition: new IPosition(x: 5, y: 2),
-	nextPositionAlongPath: new IPosition(x: 5, y: 2),
-	path: waypointsToPath([new IPosition(x: 5, y: 2), new IPosition(x: 5, y: 10)]),
+	position: r2Path.first(),
+	nextPosition: r2Path.first(),
+	nextPositionAlongPath: r2Path.drop(1).first(),
+	path: r2Path.drop(1),
 	processes: [
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
@@ -139,7 +140,7 @@ def CrossingDriveF(robots) {
 
 crossing = [
 	id: "C1",
-	area: crossingArea(new IPosition(x: 4, y: 4), new IPosition(x: 7, y: 7)),
+	area: crossingArea(new IPosition(x: 4, y: 6), new IPosition(x: 9, y: 11)),
 	robots: [:],
 	nextPositions: [:],
 	processes: [

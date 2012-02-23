@@ -10,15 +10,17 @@ import java.awt.Color;
 
 
 public class Visualisation extends TriggeredProcessActor {
-	def cols = 10
-	def rows = 10 
+	def cols = 12
+	def rows = 12 
 	List textlabels = []
 	List robotLabels = []
-	List groundLabels = []
+	List groundLabels = []	
+	Set crossing = []
 	
 	Color groundColor = Color.white
 	Color miscColor = Color.gray
 	Color robotColor = Color.green
+	Color crossingColor = Color.yellow
 	
 	public Visualisation() {
 		func = this.&animate
@@ -53,18 +55,24 @@ public class Visualisation extends TriggeredProcessActor {
 			boolean isCrossing = id.startsWith("C")
 			def toClear = []
 			def toPaint = [:]
+			
+			
 			if (isCrossing) {
 				def tl = component.area.first().first()
 				def br = component.area.first().last()
 				
-				(0..9).each { i ->
-					((tl.y+1)..(br.y-1)).each {row->
-						toClear.add(textlabels.get(row*rows+i))
-						toClear.add(textlabels.get(row*rows+i))
+				component.area.first().each {crossing.add(textlabels.get(cols*(it.y-1)+(it.x-1)))}  
+				
+				(0..<cols).each { i ->
+					((tl.y+1)..(br.y-3)).each {row->
+						toClear.add(textlabels.get(row*cols+i))
+						toClear.add(textlabels.get(row*cols+i))
 					}
-					((tl.x+1)..(br.x-1)).each {col->
-						toClear.add(textlabels.get(i*rows+col))
-						toClear.add(textlabels.get(i*rows+col))
+				}
+				(0..<rows).each { i ->
+					((tl.x+1)..(br.x-3)).each {col->
+						toClear.add(textlabels.get(i*cols+col))
+						toClear.add(textlabels.get(i*cols+col))
 					}
 				}
 			} else {
@@ -77,15 +85,19 @@ public class Visualisation extends TriggeredProcessActor {
 					toClear.add(toRemove)
 				}
 				
-				def label = textlabels.get(rows*row+col)
+				def label = textlabels.get(cols*row+col)
 				robotLabels.add(label)
 				toPaint[id] = label				
 			}
 			
 			toClear.each { l-> 
 				l.text = ""
-				l.setBackground(groundColor)
+				if (l in crossing)
+					l.setBackground(crossingColor)
+				else
+					l.setBackground(groundColor)
 			}
+			
 			toPaint.each { rid, l ->
 				l.text = rid
 				l.setBackground(robotColor)

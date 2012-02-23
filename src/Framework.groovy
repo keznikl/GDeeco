@@ -144,12 +144,11 @@ class EnsembleActor extends DefaultActor {
 	def Map coordinatorArg = [:]
 	def Map memberArg = [:]
 	
-	def active = false
+	def active = true
 	def unregisteredMember = false
 	def unregisteredCoordinator = false
 
 	public void afterStart() {		
-		active=true
 		coordinatorKnowledge.send new RegisterMsg(actor: this, fields: coordinatorInterface)
 		memberKnowledge.send new RegisterMsg(actor: this, fields: memberInterface)		
 	}
@@ -161,7 +160,7 @@ class EnsembleActor extends DefaultActor {
 	public void stopEnsemble() {	
 		active=false
 		coordinatorKnowledge.send new UnregisterAllMsg(actor: this)
-		memberKnowledge.send new UnregisterAllMsg(actor: this)		
+		memberKnowledge.send new UnregisterAllMsg(actor: this)
 	}	
 	
 	void act() {
@@ -289,19 +288,23 @@ class Framework extends DefaultActor {
 											runningEnsembles[m][c] = [:]
 											
 										def toRemove = []
+										def hasHighestPriority = true
+										
 										for (otherC in runningEnsembles[m].keySet()) {
-											for (otherE in runningEnsembles[m][otherC]?.keySet()) {
-												if ((otherC != c) && (e.priority(otherE))) {
+											for (otherE in runningEnsembles[m][otherC]?.keySet().grep({it != e})) {
+												if (e.priority(otherE)) {
 													def ocd = componentData[otherC]
 													System.out.println("Removing ensemble ${otherE.id}: c=${ocd.id}, m=${md.id} because of ${e.id}");
 													runningEnsembles.get(m)?.get(otherC)?.get(otherE)?.stopEnsemble()
 													runningEnsembles[m][otherC].keySet().remove(otherE)
-												}																						
+												} else {
+													hasHighestPriority = false
+												}																																		
 											}
 										}									
 										
 											
-										if (runningEnsembles[m][c][e] == null) {
+										if (hasHighestPriority && runningEnsembles[m][c][e] == null) {
 											System.out.println("Creating ensemble ${e.id}: c=${cd.id}, m=${md.id}");
 											runningEnsembles[m][c][e] = runEnsemble(e, c, m)
 										}
