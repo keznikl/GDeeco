@@ -13,6 +13,12 @@ public class Visualisation extends TriggeredProcessActor {
 	def cols = 10
 	def rows = 10 
 	List textlabels = []
+	List robotLabels = []
+	List groundLabels = []
+	
+	Color groundColor = Color.white
+	Color miscColor = Color.gray
+	Color robotColor = Color.green
 	
 	public Visualisation() {
 		func = this.&animate
@@ -29,11 +35,10 @@ public class Visualisation extends TriggeredProcessActor {
 							text: "",
 							border: BorderFactory.createLineBorder(Color.black),
 							opaque: true,
-							background: Color.white,
+							background: miscColor,
 							horizontalAlignment: JLabel.CENTER
 							))
-					}
-				
+					}				
 			}
 		}		
 		
@@ -41,19 +46,51 @@ public class Visualisation extends TriggeredProcessActor {
 	}
 	
 	private animate(component) {
+		
+		
 		new SwingBuilder().edt {
 			def id = component.id.first().toString()
-			def col = component.position.x.first() - 1
-			def row = component.position.y.first() - 1
-			textlabels.each{
-					if (it.text.equals(id)) {
-						it.text = ""
-						it.setBackground(Color.white);
+			boolean isCrossing = id.startsWith("C")
+			def toClear = []
+			def toPaint = [:]
+			if (isCrossing) {
+				def tl = component.area.first().first()
+				def br = component.area.first().last()
+				
+				(0..9).each { i ->
+					((tl.y+1)..<(br.y-1)).each {row->
+						toClear.add(textlabels.get(row*rows+i))
+						toClear.add(textlabels.get(row*rows+i))
+					}
+					((tl.x+1)..<(br.x-1)).each {col->
+						toClear.add(textlabels.get(i*rows+col))
+						toClear.add(textlabels.get(i*rows+col))
 					}
 				}
-			def label = textlabels.get(rows*row+col)
-			label.text = id;
-			label.setBackground(Color.green);
+			} else {
+				def col = component.position.x.first() - 1
+				def row = component.position.y.first() - 1				
+				
+				def toRemove = robotLabels.find {it.text.equals(id)}
+				if (toRemove != null) { 
+					robotLabels.remove(toRemove)
+					toClear.add(toRemove)
+				}
+				
+				def label = textlabels.get(rows*row+col)
+				robotLabels.add(label)
+				toPaint[id] = label				
+			}
+			
+			toClear.each { l-> 
+				l.text = ""
+				l.setBackground(groundColor)
+			}
+			toPaint.each { rid, l ->
+				l.text = rid
+				l.setBackground(robotColor)
+			} 
+			
 		}
 	}
 }

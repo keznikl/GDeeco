@@ -101,8 +101,7 @@ class TriggeredProcessActor extends DefaultActor {
 					def resultList = func(argList)
 						
 					if (resultList != null && resultList != [] && outMapping != []) {
-						def result = [outMapping, resultList].transpose().collectEntries { it }
-						System.out.println("result: " + result)
+						def result = [outMapping, resultList].transpose().collectEntries { it }						
 						reply result
 					}
 				}
@@ -233,11 +232,16 @@ class Framework extends DefaultActor {
 											runningEnsembles[c] = [:]
 										if (runningEnsembles[c][m] == null)
 											runningEnsembles[c][m] = [:]
-										if (runningEnsembles[c][m][e] == null)
+										if (runningEnsembles[c][m][e] == null) {
+											System.out.println("Creating ensemble ${e.id}: c=${cd.id}, m=${md.id}");
 											runningEnsembles[c][m][e] = runEnsemble(e, c, m)
+										}
 									} else {
-										runningEnsembles.get(c)?.get(m)?.get(e)?.stop()
-										runningEnsembles.get(c)?.get(m)?.remove(e)
+										if (runningEnsembles.get(c)?.get(m)?.get(e) != null) {
+											System.out.println("Removing ensemble ${e.id}");
+											runningEnsembles.get(c)?.get(m)?.get(e)?.stop()
+											runningEnsembles.get(c)?.get(m)?.remove(e)
+										}
 									}
 								}
 							}
@@ -268,6 +272,8 @@ class Framework extends DefaultActor {
 		k.registerListener([actor: this, fields: inMapping] as KnowledgeListener)
 		k.registerListener([actor: visualisation, fields: visualisation.inMapping] as KnowledgeListener)
 		
+		
+		
 		startedActors.add(k)
 		components.add(k)		
 		
@@ -297,6 +303,7 @@ class Framework extends DefaultActor {
 		}		
 				
 		k.send new ReqDataMessage(reply: this, fields: inMapping)
+		k.send new ReqDataMessage(reply: visualisation, fields: inMapping)
 		
 		return startedActors
 	}
