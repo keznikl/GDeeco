@@ -42,13 +42,80 @@ class KnowledgeActor extends DefaultActor {
 		listeners.removeAll {it.actor == a}
 	}
 	
+	protected static deepClone(c) {
+		if (c instanceof Map) {
+			def m = (c as Map).clone()
+			for (k in m.keySet())
+				m[k] = deepClone(m[k])
+			return m
+		} else if (c instanceof List) {
+			def r = []
+			def l = c as List
+			for (v in l)
+				r.add(deepClone(v))
+			return r	
+		} else if (c instanceof Set) {
+			def r = [] as Set
+			def l = c as Set
+			for (v in l)
+				r.add(deepClone(v))
+			return r
+		} else {
+			return c
+		}
+	}
+	
+	protected static boolean deepEquals(a, b) {
+		if ((a instanceof Map) && (a instanceof Map)) {
+			a = (Map) a
+			b = (Map) b
+			return a.keySet().equals(b.keySet()) && a.keySet().every {deepEquals(a[it], b[it])}
+		} else if ((a instanceof List) && (b instanceof List)) {
+			a = (List) a
+			b = (List) b
+			return (a.size() == b.size()) && (0..<a.size()).every {deepEquals(a[it], b[it])}
+		} else if ((a instanceof Set) && (b instanceof Set)) {
+			a = (Set) a
+			b = (Set) b
+			if (a.size() != b.size())
+				return false
+			a.each {ai->
+				def found = false
+				b.each {bi->
+					if (deepEquals(ai, bi))
+						found = true
+				}
+				if (!found)
+					return false
+			}
+			return true
+		} else {
+			if (a==null && b==null)
+				return true
+			else if (a==null || b==null)
+				return false
+			return a == b
+		}
+	}
+	
+	protected static void mergeMaps(Map to, Map from) {
+		from.each {k, v ->
+			def orig = to[k]
+			if ((orig != null) && (v instanceof Map) && (orig instanceof Map)) {
+				mergeMaps(orig, v)					
+			} else {
+				to[k]=v
+			}
+		}
+	}
+	
 	private assembleChangeSet(List fields) {
 		def msg = [:]
 		if (fields == ["root"])
-			msg = ["root": knowledge]
+			msg = ["root": deepClone(knowledge)]
 		else {
 			for (f in fields) {
-				msg[f] = knowledge[f]
+				msg[f] = deepClone(knowledge[f])
 			}
 		}
 		return msg
@@ -64,10 +131,17 @@ class KnowledgeActor extends DefaultActor {
 	void processChangeSet(Map changeSet) {
 		def changed = []
 		for (key in changeSet.keySet()) {
-			if (knowledge[key] != changeSet[key]) {
-				knowledge[key] = changeSet[key]
+			
+			if (!deepEquals(knowledge[key], changeSet[key])) {
+				//System.out.println("Changed '$key' for ${knowledge.id}:\n${knowledge[key]}\n${changeSet[key]}");				
+				//if ((knowledge[key] instanceof Map) && (changeSet[key] instanceof Map)) {
+				//	mergeMaps(knowledge[key], changeSet[key] )
+				//} else {
+					knowledge[key] = deepClone(changeSet[key])
+				//}
 				changed.add(key)
-			}
+				
+			} 
 		}
 		 
 		if (changed != []) {
@@ -141,8 +215,8 @@ class EnsembleActor extends DefaultActor {
 	def KnowledgeActor coordinatorKnowledge
 	def KnowledgeActor memberKnowledge	 
 	
-	def Map coordinatorArg = [:]
-	def Map memberArg = [:]
+	def Map coordinatorData
+	def Map memberData
 	
 	def active = true
 	def unregisteredMember = false
@@ -168,9 +242,9 @@ class EnsembleActor extends DefaultActor {
 			react {msg ->
 				if (msg instanceof UnregisterAllConfirmation) {
 					if (sender == coordinatorKnowledge)
-						unregisteredCoordinator
+						unregisteredCoordinator = true
 					if (sender == memberKnowledge)
-						unregisteredMember
+						unregisteredMember = true
 					if (unregisteredMember && unregisteredCoordinator)
 						terminate();
 				} else {
@@ -179,24 +253,34 @@ class EnsembleActor extends DefaultActor {
 						
 					Map component = msg as Map
 					
+					def fromCoordinator = false
+					
+					// comparisons have to be based on interfaces 
+					// (for cases where the member and coordinator is the same component)
 					if (component.keySet().equals(coordinatorInterface.toSet())) {
-						coordinatorArg = component
+						coordinatorData = component
+						fromCoordinator = true
 					}
 					if (component.keySet().equals(memberInterface.toSet())) {
-						memberArg = component
-					}
+						memberData = component
+					}					
 					
-					if (coordinatorArg==[:] || memberArg==[:]) {
-						return
-					}
 					
 					def coordinatorResult
 					def memberResult
 					
-					(coordinatorResult, memberResult) = mapping(coordinatorArg, memberArg)
+					(coordinatorResult, memberResult) = mapping(coordinatorData, memberData)
 					
-					coordinatorKnowledge.send coordinatorResult
-					memberKnowledge.send memberResult		
+					if (fromCoordinator) {
+						memberKnowledge.send memberResult
+					} else {
+						coordinatorKnowledge.send coordinatorResult
+					}
+//					coordinatorKnowledge.send coordinatorResult
+//					memberKnowledge.send memberResult
+					
+					
+					
 				}		
 			}
 		}
@@ -242,6 +326,8 @@ class IProcess {
 	List inMapping = []
 	List outMapping = []
 	Map schedData = [:]
+	
+	
 }
 
 
@@ -306,7 +392,7 @@ class Framework extends DefaultActor {
 											
 										if (hasHighestPriority && runningEnsembles[m][c][e] == null) {
 											System.out.println("Creating ensemble ${e.id}: c=${cd.id}, m=${md.id}");
-											runningEnsembles[m][c][e] = runEnsemble(e, c, m)
+											runningEnsembles[m][c][e] = runEnsemble(e, c, m, cd, md)
 										}
 									} else {
 										if (runningEnsembles.get(m)?.get(c)?.get(e) != null) {
@@ -379,14 +465,16 @@ class Framework extends DefaultActor {
 		return startedActors
 	}
 	
-	private def runEnsemble(Map e, KnowledgeActor coordinator, KnowledgeActor member) {
+	private def runEnsemble(Map e, KnowledgeActor coordinator, KnowledgeActor member, Map initCoordinatorData, Map initMemberData) {
 		def actor = new EnsembleActor(
 			id: e.id, 
 			mapping: e.mapping,
 			coordinatorInterface: e.coordinator,
 			memberInterface: e.member,
 			coordinatorKnowledge: coordinator,
-			memberKnowledge: member
+			memberKnowledge: member,
+			coordinatorData: initCoordinatorData,
+			memberData: initMemberData,
 		).start()
 		return actor		
 	}

@@ -13,7 +13,7 @@ public class Visualisation extends TriggeredProcessActor {
 	def cols = 12
 	def rows = 12 
 	List textlabels = []
-	List robotLabels = []
+	Map robotLabels = [:]
 	List groundLabels = []	
 	Set crossing = []
 	
@@ -75,18 +75,24 @@ public class Visualisation extends TriggeredProcessActor {
 						toClear.add(textlabels.get(i*cols+col))
 					}
 				}
-			} else {
+				
+				robotLabels.each {k,v -> 
+					if (v in toClear)
+						toPaint[k] = v
+				}
+				
+			} else {			
 				def col = component.position.x.first() - 1
 				def row = component.position.y.first() - 1				
 				
-				def toRemove = robotLabels.find {it.text.equals(id)}
+				def toRemove = robotLabels[id]
 				if (toRemove != null) { 
-					robotLabels.remove(toRemove)
+					robotLabels.keySet().remove(id)
 					toClear.add(toRemove)
 				}
 				
 				def label = textlabels.get(cols*row+col)
-				robotLabels.add(label)
+				robotLabels[id]= label
 				toPaint[id] = label				
 			}
 			
