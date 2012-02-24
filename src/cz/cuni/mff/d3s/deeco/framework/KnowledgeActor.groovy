@@ -106,7 +106,10 @@ class KnowledgeActor extends DefaultActor {
 		}
 		key = keyPath.first()
 		if (!deepEquals(knowledgeSubTree[key], value)) {
-			knowledgeSubTree[key] = deepClone(value)			
+			if (value == null)
+				knowledgeSubTree.keySet().remove(key)
+			else
+				knowledgeSubTree[key] = deepClone(value)			
 			System.out.println("[${knowledge.id}]: $topKey = ${knowledge[topKey]}");
 			return topKey
 		}

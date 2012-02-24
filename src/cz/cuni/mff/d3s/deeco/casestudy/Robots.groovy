@@ -173,13 +173,13 @@ def getDirection(RobotInfo robot) {
 def nobodyAtRightHand(RobotInfo robot, Map robots, List area) {
 	switch (getDirection(robot)) {
 		case EDirection.RIGHT:
-			return robots.each({getDirection(it.value) != EDirection.UP})					
+			return robots.every({getDirection(it.value) != EDirection.UP})					
 		case EDirection.LEFT:
-			return robots.each({getDirection(it.value) != EDirection.DOWN})	
+			return robots.every({getDirection(it.value) != EDirection.DOWN})	
 		case EDirection.UP:
-			return robots.each({getDirection(it.value) != EDirection.LEFT})
+			return robots.every({getDirection(it.value) != EDirection.LEFT})
 		case EDirection.DOWN:
-			return robots.each({getDirection(it.value) != EDirection.RIGHT})
+			return robots.every({getDirection(it.value) != EDirection.RIGHT})
 		default:
 			return false	
 	}
@@ -207,6 +207,7 @@ def CrossingDriveF(robots, area) {
 		else
 			stopRobot(robotId, robotInfo, nextpos)
 	}
+	
 	return [nextpos]
 }
 
@@ -232,7 +233,7 @@ def positionInArea(IPosition position, List area) {
 	}
 	return ret
 }
-def ICrossing = [read: ["nextPositions", "robots"], write: ["robots"]]
+def ICrossing = [read: ["nextPositions", "robots", "area"], write: ["robots"]]
 def ICrossingRobot = [read:["id", "position", "path"], write: ["nextPosition"]]
 
 def crossingEnsemble = [
@@ -243,8 +244,11 @@ def crossingEnsemble = [
 		positionInArea(member.position, coordinator.area)
 	},
 	member2coordinator: {coordinator, member ->
-		System.out.println("${member.id}->CROSSING");		
-		return ["robots.${member.id}": new RobotInfo(position: member.position, path: member.path).clone()]
+		System.out.println("${member.id}->CROSSING");	
+		if (!member.path.empty && !positionInArea(member.position, coordinator.area))
+			return ["robots.${member.id}": null]
+		else
+			return ["robots.${member.id}": new RobotInfo(position: member.position, path: member.path).clone()]
 	},
 	coordinator2member: {coordinator, member ->
 		System.out.println("CROSSING->${member.id}");
