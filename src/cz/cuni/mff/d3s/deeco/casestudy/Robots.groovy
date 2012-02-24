@@ -66,7 +66,7 @@ def RobotDriveF(List path, IPosition nextPosition) {
 
 
 
-def r1Path = waypointsToPath([new IPosition(x: 2, y: 9), new IPosition(x: 12, y: 9)]) 
+def r1Path = waypointsToPath([new IPosition(x: 1, y: 9), new IPosition(x: 12, y: 9)]) 
 def robot = [
     id: "R1",
     position: r1Path.first() ,
@@ -88,7 +88,7 @@ def robot = [
 	]
 ]
 
-def r2Path = waypointsToPath([new IPosition(x: 6, y: 2), new IPosition(x: 6, y: 12)])
+def r2Path = waypointsToPath([new IPosition(x: 6, y: 4), new IPosition(x: 6, y: 12)])
 def robot2 = [
 	id: "R2",
 	position: r2Path.first(),
@@ -106,7 +106,7 @@ def robot2 = [
 			func: this.&RobotStepF,
 			inMapping: ["nextPosition", "path"],
 			outMapping: ["position", "path"],
-			schedData: [sleepTime: 500]),
+			schedData: [sleepTime: 1000]),
 	]
 ]
 
@@ -171,19 +171,31 @@ def getDirection(RobotInfo robot) {
 	}
 }
 
-boolean LeavingOrHasNotDirection(RobotInfo r, EDirection d, area) {
-	return ((r.path.size() > 1) && (!positionInArea(r.path[1], area))) || (getDirection(r) != d)
+boolean isLeaving(RobotInfo r, area) {
+	((r.path.size() > 0) && (!positionInArea(r.path[0], area))) || ((r.path.size() > 1) && (!positionInArea(r.path[1], area)))
+}
+boolean hasNotDirection(RobotInfo r, EDirection d) {
+	(getDirection(r) != d)
+}
+boolean isInTheCrossing(RobotInfo r, area) {
+	def tl = new IPosition(x: area.first().x+2, y: area.first().y+2)
+	def br = new IPosition(x: area.last().x-2, y: area.last().y-2)
+	return positionInArea(r.position, crossingArea(tl, br))
+} 
+
+boolean enterCondition(RobotInfo robot, Map robots, area, EDirection d) {
+	isInTheCrossing(robot, area) || isLeaving(robot, area) || robots.values().every({!isInTheCrossing(it, area) && (isLeaving(it, area) || hasNotDirection(it, d))})
 }
 def nobodyAtRightHand(RobotInfo robot, Map robots, List area) {
 	switch (getDirection(robot)) {
 		case EDirection.RIGHT:
-			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.UP, area)})					
+			return enterCondition(robot, robots, area, EDirection.UP)					
 		case EDirection.LEFT:
-			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.DOWN, area)})	
+			return enterCondition(robot, robots, area, EDirection.DOWN) 	
 		case EDirection.UP:
-			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.LEFT, area)})
+			return enterCondition(robot, robots, area, EDirection.LEFT) 
 		case EDirection.DOWN:
-			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.RIGHT, area)})
+			return enterCondition(robot, robots, area, EDirection.RIGHT) 
 		default:
 			return false	
 	}
@@ -222,10 +234,11 @@ crossing = [
 	nextPositions: [:],
 	processes: [
 		drive: new IProcess(
-			schedType: SchedType.PROCESS_TRIGGERED,
+			schedType: SchedType.PROCESS_PERIODIC,
 			func: this.&CrossingDriveF,
 			inMapping: ["robots", "area"],
-			outMapping: ["nextPositions"]),
+			outMapping: ["nextPositions"],
+			schedData: [sleepTime: 200]),
 	],
 ]
 
