@@ -59,7 +59,7 @@ def RobotStepF(IPosition nextPosition, List path) {
 		retpath = path.drop(1)
 	return [nextPosition.clone(), retpath]
 }
-def RobotDriveF(List path) {
+def RobotDriveF(List path, IPosition nextPosition) {
 	if (!path.empty)
 		return [path.first().clone()]
 }
@@ -77,7 +77,7 @@ def robot = [
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
 			func: this.&RobotDriveF,
-			inMapping: ["path"], 
+			inMapping: ["path", "nextPosition"], 
 			outMapping: ["nextPositionAlongPath"]),		
 		step: new IProcess(
 			schedType: SchedType.PROCESS_PERIODIC,
@@ -99,7 +99,7 @@ def robot2 = [
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
 			func: this.&RobotDriveF,
-			inMapping: ["path"], 
+			inMapping: ["path", "nextPosition"], 
 			outMapping: ["nextPositionAlongPath"]),		
 		step: new IProcess(
 			schedType: SchedType.PROCESS_PERIODIC,
@@ -170,16 +170,20 @@ def getDirection(RobotInfo robot) {
 		return EDirection.UP
 	}
 }
+
+boolean LeavingOrHasNotDirection(RobotInfo r, EDirection d, area) {
+	return ((r.path.size() > 1) && (!positionInArea(r.path[1], area))) || (getDirection(r) != d)
+}
 def nobodyAtRightHand(RobotInfo robot, Map robots, List area) {
 	switch (getDirection(robot)) {
 		case EDirection.RIGHT:
-			return robots.every({getDirection(it.value) != EDirection.UP})					
+			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.UP, area)})					
 		case EDirection.LEFT:
-			return robots.every({getDirection(it.value) != EDirection.DOWN})	
+			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.DOWN, area)})	
 		case EDirection.UP:
-			return robots.every({getDirection(it.value) != EDirection.LEFT})
+			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.LEFT, area)})
 		case EDirection.DOWN:
-			return robots.every({getDirection(it.value) != EDirection.RIGHT})
+			return robots.values().every({LeavingOrHasNotDirection(it, EDirection.RIGHT, area)})
 		default:
 			return false	
 	}
@@ -201,7 +205,7 @@ def stopRobot(String robotId, RobotInfo robotInfo, Map nextpos) {
 def CrossingDriveF(robots, area) {
 	def nextpos = [:]
 	robots.each{String robotId, RobotInfo robotInfo->
-		//v.path = v.path.intersect(area)
+		//v.path = v.path.intersect(area)		
 		if (nobodyAtRightHand(robotInfo, robots, area))
 			continueRobot(robotId, robotInfo, nextpos)			
 		else
@@ -226,12 +230,11 @@ crossing = [
 ]
 
 def positionInArea(IPosition position, List area) {
-	def ret = false
-	area.each {p ->
+	for (p in area) {
 		if (p.equals(position))
-			ret = true		
+			return true		
 	}
-	return ret
+	return false
 }
 def ICrossing = [read: ["nextPositions", "robots", "area"], write: ["robots"]]
 def ICrossingRobot = [read:["id", "position", "path"], write: ["nextPosition"]]
@@ -245,9 +248,9 @@ def crossingEnsemble = [
 	},
 	member2coordinator: {coordinator, member ->
 		System.out.println("${member.id}->CROSSING");	
-		if (!member.path.empty && !positionInArea(member.position, coordinator.area))
-			return ["robots.${member.id}": null]
-		else
+//		if (!member.path.empty && !positionInArea(member.position, coordinator.area))
+//			return ["robots.${member.id}": null]
+//		else
 			return ["robots.${member.id}": new RobotInfo(position: member.position, path: member.path).clone()]
 	},
 	coordinator2member: {coordinator, member ->
