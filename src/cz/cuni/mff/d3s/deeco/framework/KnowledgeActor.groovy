@@ -75,19 +75,8 @@ class KnowledgeActor extends DefaultActor {
 			return a == b
 		}
 	}
-	
-	protected static void mergeMaps(Map to, Map from) {
-		from.each {k, v ->
-			def orig = to[k]
-			if ((orig != null) && (v instanceof Map) && (orig instanceof Map)) {
-				mergeMaps(orig, v)
-			} else {
-				to[k]=v
-			}
-		}
-	}
-	
-	private assembleChangeSet(List fields) {
+		
+	private Map assembleChangeSet(List fields) {
 		def msg = [:]
 		if (fields == ["root"])
 			msg = ["root": deepClone(knowledge)]
@@ -102,25 +91,44 @@ class KnowledgeActor extends DefaultActor {
 		l.actor.send assembleChangeSet(l.fields)
 	}
 	
-	private void processDataRequest(Actor a, List fields) {
-		a.send(assembleChangeSet(fields))
+	private Map processDataRequest(List fields) {
+		return assembleChangeSet(fields)
+	}
+	
+	private procesChange(String key, value) {
+		Map knowledgeSubTree = knowledge
+		List keyPath = key.split("\\.")
+		def topKey = keyPath.first()
+		
+		while (keyPath.size() > 1) {
+			knowledgeSubTree = knowledgeSubTree[keyPath.first()]
+			keyPath.remove(0)						 
+		}
+		key = keyPath.first()
+		if (!deepEquals(knowledgeSubTree[key], value)) {
+			knowledgeSubTree[key] = deepClone(value)			
+			System.out.println("[${knowledge.id}]: $topKey = ${knowledge[topKey]}");
+			return topKey
+		}
+		return null
 	}
 	
 	void processChangeSet(Map changeSet) {
 		def changed = []
-		for (key in changeSet.keySet()) {
-			
-			if (!deepEquals(knowledge[key], changeSet[key])) {
-				//System.out.println("Changed '$key' for ${knowledge.id}:\n${knowledge[key]}\n${changeSet[key]}");
-				//if ((knowledge[key] instanceof Map) && (changeSet[key] instanceof Map)) {
-				//	mergeMaps(knowledge[key], changeSet[key] )
-				//} else {
-					knowledge[key] = deepClone(changeSet[key])
-				//}
-				changed.add(key)
-				
-			}
+		changeSet.each {k, v ->			
+			def changedKey = procesChange(k, v)
+			if (changedKey!=null)
+				changed.add(changedKey)
 		}
+			
+//		for (key in changeSet.keySet()) {
+//						
+//			if (!deepEquals(k[key], changeSet[key])) {
+//				knowledge[key] = deepClone(changeSet[key])				
+//				changed.add(key)				
+//				System.out.println("[${knowledge.id}]: $key = ${changeSet[key]}");
+//			}
+//		}
 		 
 		if (changed != []) {
 			def toNotify = listeners.findAll { KnowledgeListener l ->
@@ -138,16 +146,16 @@ class KnowledgeActor extends DefaultActor {
 				if (msg instanceof Map) {
 					processChangeSet(msg as Map)
 				} else if (msg instanceof ReqDataMessage) {
-					processDataRequest(((ReqDataMessage)msg).reply, ((ReqDataMessage)msg).fields)
+					def response = processDataRequest((msg as ReqDataMessage).fields)
+					reply response
 				} else if (msg instanceof RegisterMsg) {
 					msg = msg as RegisterMsg
 					def listener = new KnowledgeListener(actor: msg.actor, fields: msg.fields)
 					registerListener(listener)
-					notifyListener(listener)
-				} else if (msg instanceof UnregisterAllMsg) {
-					msg = msg as UnregisterAllMsg
-					unregisterListener(msg.actor)
-					msg.actor.send new UnregisterAllConfirmation()
+					msg.actor.send assembleChangeSet(listener.fields) 
+				} else if (msg instanceof UnregisterAllMsg) {					
+					unregisterListener((msg as UnregisterAllMsg).actor)
+					reply new UnregisterAllConfirmation()
 				} else {
 					System.err.println("Unknown message: " + msg.toString());
 				}
@@ -156,8 +164,7 @@ class KnowledgeActor extends DefaultActor {
 	}
 }
 
-class ReqDataMessage {
-	def Actor reply
+class ReqDataMessage {	
 	def List fields
 }
 

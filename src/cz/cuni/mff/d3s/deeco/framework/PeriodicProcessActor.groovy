@@ -13,8 +13,7 @@ class PeriodicProcessActor extends BlockingActor{
 
 	void act() {
 		while (true) {
-			knowledgeActor.send new ReqDataMessage(reply: this, fields: inMapping)
-			def args = receive()
+			def args = knowledgeActor.sendAndWait new ReqDataMessage(fields: inMapping)
 			def argList = []
 			for (key in inMapping)
 				argList.add(args[key])

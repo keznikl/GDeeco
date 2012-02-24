@@ -1,6 +1,7 @@
 package cz.cuni.mff.d3s.deeco.framework.test
 
 import cz.cuni.mff.d3s.deeco.casestudy.IPosition
+import cz.cuni.mff.d3s.deeco.framework.KnowledgeActor;
 
 class FrameworkTest extends GroovyTestCase {
 	void testDeepEqualsList() {
@@ -11,6 +12,10 @@ class FrameworkTest extends GroovyTestCase {
 	}
 	void testIPosition() {
 		assert KnowledgeActor.deepEquals(new IPosition(x:6, y:3), new IPosition(x:6, y:3)) 
+	}
+	void testSplit() {
+		assert ["a", "b"] == "a.b".split("\\.")
+		
 	}
 	
 

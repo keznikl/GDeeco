@@ -16,6 +16,9 @@ public class IPosition {
 	public boolean equals(IPosition p) { 
 		this.hashCode() == p.hashCode() 
 	} 
+	public clone() {
+		return new IPosition(x:x, y:y)
+	}
 }
 
 def waypointsToPath(waypoints) {
@@ -50,41 +53,38 @@ def crossingArea(IPosition tl, IPosition br) {
 }
 
 
-def RobotStepF(nextPosition) {
-	return nextPosition
+def RobotStepF(IPosition nextPosition, List path) {
+	def retpath = path
+	if ((!path.empty) && nextPosition.equals(path.first()))
+		retpath = path.drop(1)
+	return [nextPosition.clone(), retpath]
 }
-def RobotDriveF(List path, IPosition positionForDrive) {
-	if ((path.size() > 1) && (path.first() == positionForDrive))
-		return [path.drop(1), path[1]]
+def RobotDriveF(List path) {
+	if (!path.empty)
+		return [path.first().clone()]
 }
-def LogPosition(id, position) { System.out.println("Position for $id updated to: [${position.x}, ${position.y}]");}
 
 
-def r1Path = waypointsToPath([new IPosition(x: 2, y: 9), new IPosition(x: 10, y: 9)]) 
+
+def r1Path = waypointsToPath([new IPosition(x: 2, y: 9), new IPosition(x: 12, y: 9)]) 
 def robot = [
     id: "R1",
     position: r1Path.first() ,
-	nextPosition: r1Path[1],
-	positionForDrive: r1Path.first() ,
+	nextPosition: r1Path[1],	
 	nextPositionAlongPath: r1Path[1],
     path: r1Path.drop(1), 
 	processes: [		
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
 			func: this.&RobotDriveF,
-			inMapping: ["path", "positionForDrive"], 
-			outMapping: ["path", "nextPositionAlongPath"]),		
+			inMapping: ["path"], 
+			outMapping: ["nextPositionAlongPath"]),		
 		step: new IProcess(
 			schedType: SchedType.PROCESS_PERIODIC,
 			func: this.&RobotStepF,
-			inMapping: ["nextPosition"],
-			outMapping: ["position"],
-			schedData: [sleepTime: 1000]),		
-		log: new IProcess(
-			schedType: SchedType.PROCESS_TRIGGERED,
-			func: this.&LogPosition,
-			inMapping: ["id", "position"],
-			outMapping: []),
+			inMapping: ["nextPosition", "path"],
+			outMapping: ["position", "path"],
+			schedData: [sleepTime: 1000]),
 	]
 ]
 
@@ -92,34 +92,28 @@ def r2Path = waypointsToPath([new IPosition(x: 6, y: 2), new IPosition(x: 6, y: 
 def robot2 = [
 	id: "R2",
 	position: r2Path.first(),
-	nextPosition: r2Path[1],
-	positionForDrive: r2Path.first() ,
+	nextPosition: r2Path[1],	
 	nextPositionAlongPath: r2Path[1],
 	path: r2Path.drop(1),
 	processes: [
 		drive: new IProcess(
 			schedType: SchedType.PROCESS_TRIGGERED,
 			func: this.&RobotDriveF,
-			inMapping: ["path", "positionForDrive"], 
-			outMapping: ["path", "nextPositionAlongPath"]),		
+			inMapping: ["path"], 
+			outMapping: ["nextPositionAlongPath"]),		
 		step: new IProcess(
 			schedType: SchedType.PROCESS_PERIODIC,
 			func: this.&RobotStepF,
-			inMapping: ["nextPosition"],
-			outMapping: ["position"],
+			inMapping: ["nextPosition", "path"],
+			outMapping: ["position", "path"],
 			schedData: [sleepTime: 500]),
-		log: new IProcess(
-			schedType: SchedType.PROCESS_TRIGGERED,
-			func: this.&LogPosition,
-			inMapping: ["id", "position"],
-			outMapping: []),
 	]
 ]
 
 
 
-def IRobot = ["id", "nextPosition", "position"]
-def IRobotDrive = ["id", "nextPositionAlongPath", "positionForDrive"]
+def IRobot = [read: ["id"], write: ["nextPosition"]]
+def IRobotDrive = [read: ["id", "nextPositionAlongPath"], write: [] ]
 
 def robotEnsemble = [
 	id: "robotEnsemble",
@@ -128,19 +122,16 @@ def robotEnsemble = [
 	membership: {coordinator, member -> 
 		coordinator.id.toString().equals(member.id.toString())
 	},
-	mapping: {coordinator, member ->
-		coordinator.positionForDrive = member.position
-		member.nextPosition = coordinator.nextPositionAlongPath
-		return [coordinator, member]
+	member2coordinator: {coordinator, member ->
+		return [:]
 	},
+	coordinator2member: {coordinator, member ->		
+		return [nextPosition: coordinator.nextPositionAlongPath.clone()]
+	},	
 	priority: {other -> false}
 ]
 
 
-
-def CrossingLogF(id, Map robots, Map nextPositions) {
-	System.out.println("Crossing ${id} update: robots=$robots, nextPositions=$nextPositions");
-}
 
 
 class RobotInfo {
@@ -154,6 +145,10 @@ class RobotInfo {
 	public String toString() {
 		"RobotInfo[pos=$position, path=$path]"
 	} 
+	
+	public clone() {
+		return new RobotInfo(position: position.clone(), path: path.collect {it.clone()})
+	}
 }
 enum EDirection {UP, DOWN, LEFT, RIGHT, UNKNOWN}
 def getDirection(RobotInfo robot) {
@@ -190,14 +185,27 @@ def nobodyAtRightHand(RobotInfo robot, Map robots, List area) {
 	}
 	return false
 }
+
+def continueRobot(String robotId, RobotInfo robotInfo, Map nextpos) {	
+	if (robotInfo.position.equals(robotInfo.path.first())) {
+		nextpos[robotId] = new RobotInfo(position: robotInfo.path[1], path: robotInfo.path.drop(1)).clone()
+	} else {
+		nextpos[robotId] = new RobotInfo(position: robotInfo.path.first(), path: robotInfo.path).clone()
+	}
+}
+
+def stopRobot(String robotId, RobotInfo robotInfo, Map nextpos) {
+	//nextpos[robotId] = robotInfo.clone()
+}
+
 def CrossingDriveF(robots, area) {
 	def nextpos = [:]
-	robots.each{k, v->
+	robots.each{String robotId, RobotInfo robotInfo->
 		//v.path = v.path.intersect(area)
-		if (nobodyAtRightHand(v, robots, area))
-			nextpos[k] = new RobotInfo(position: v.path.first(), path: v.path.drop(0))
+		if (nobodyAtRightHand(robotInfo, robots, area))
+			continueRobot(robotId, robotInfo, nextpos)			
 		else
-			nextpos[k] = new RobotInfo(position: v.position, path: v.path)
+			stopRobot(robotId, robotInfo, nextpos)
 	}
 	return [nextpos]
 }
@@ -213,11 +221,6 @@ crossing = [
 			func: this.&CrossingDriveF,
 			inMapping: ["robots", "area"],
 			outMapping: ["nextPositions"]),
-		log: new IProcess(
-			schedType: SchedType.PROCESS_TRIGGERED,
-			func: this.&CrossingLogF,
-			inMapping: ["id", "robots", "nextPositions"],
-			outMapping: []),
 	],
 ]
 
@@ -229,8 +232,8 @@ def positionInArea(IPosition position, List area) {
 	}
 	return ret
 }
-def ICrossing = ["robots", "nextPositions", "area"]
-def ICrossingRobot = ["id", "position", "path"]
+def ICrossing = [read: ["nextPositions", "robots"], write: ["robots"]]
+def ICrossingRobot = [read:["id", "position", "path"], write: ["nextPosition"]]
 
 def crossingEnsemble = [
 	id: "crossingEnsemble",
@@ -239,14 +242,17 @@ def crossingEnsemble = [
 	membership: {coordinator, member ->
 		positionInArea(member.position, coordinator.area)
 	},
-	mapping: {coordinator, member ->
-		coordinator.robots[member.id] = new RobotInfo(position: member.position, path: member.path) 
+	member2coordinator: {coordinator, member ->
+		System.out.println("${member.id}->CROSSING");		
+		return ["robots.${member.id}": new RobotInfo(position: member.position, path: member.path).clone()]
+	},
+	coordinator2member: {coordinator, member ->
+		System.out.println("CROSSING->${member.id}");
+		def memberResult = [:]
 		if (coordinator.nextPositions[member.id] != null) {
-			member.nextPosition = coordinator.nextPositions[member.id].position
-			member.path = coordinator.nextPositions[member.id].path
-		}
-		
-		return [coordinator, member]
+			memberResult.nextPosition = coordinator.nextPositions[member.id].position.clone()			
+		}				
+		return memberResult
 	},
 	priority: {other -> true}	
 ]

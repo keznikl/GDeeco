@@ -51,60 +51,74 @@ class Framework extends DefaultActor {
 				
 				componentData[sender] = component				
 				
-				components.each {c->
-					if (componentData.containsKey(c)) {						
-						components.each {m->
-							if (componentData.containsKey(m)) {
-								ensembles.each {e->		
-									def cd = componentData[c]
-									def md = componentData[m]									
+				// iterate over all pairs of components with known state data
+				components.grep({componentData.containsKey(it)}).each {m->											
+					components.grep({componentData.containsKey(it)}).each {c->						
+						ensembles.each {e->		
+							def cd = componentData[c]
+							def md = componentData[m]									
+							
+							if (hasInterface(cd, e.coordinator) && hasInterface(md, e.member) && e.membership(cd, md)) {
+								if (runningEnsembles[m] == null)
+									runningEnsembles[m] = [:]
+								if (runningEnsembles[m][c] == null)
+									runningEnsembles[m][c] = [:]
 									
-									if (hasInterface(cd, e.coordinator) && hasInterface(md, e.member) && e.membership(cd, md)) {
-										if (runningEnsembles[m] == null)
-											runningEnsembles[m] = [:]
-										if (runningEnsembles[m][c] == null)
-											runningEnsembles[m][c] = [:]
-											
-										def toRemove = []
-										def hasHighestPriority = true
-										
-										for (otherC in runningEnsembles[m].keySet()) {
-											for (otherE in runningEnsembles[m][otherC]?.keySet().grep({it != e})) {
-												if (e.priority(otherE)) {
-													def ocd = componentData[otherC]
-													System.out.println("Removing ensemble ${otherE.id}: c=${ocd.id}, m=${md.id} because of ${e.id}");
-													runningEnsembles.get(m)?.get(otherC)?.get(otherE)?.stopEnsemble()
-													runningEnsembles[m][otherC].keySet().remove(otherE)
-												} else {
-													hasHighestPriority = false
-												}																																		
-											}
-										}									
-										
-											
-										if (hasHighestPriority && runningEnsembles[m][c][e] == null) {
-											System.out.println("Creating ensemble ${e.id}: c=${cd.id}, m=${md.id}");
-											runningEnsembles[m][c][e] = runEnsemble(e, c, m, cd, md)
-										}
-									} else {
-										if (runningEnsembles.get(m)?.get(c)?.get(e) != null) {
-											System.out.println("Removing ensemble ${e.id}");
-											runningEnsembles.get(m)?.get(c)?.get(e)?.stopEnsemble()
-											runningEnsembles.get(m)?.get(c)?.remove(e)
-										}
+								def toStop = []
+								def hasHighestPriority = true
+								
+								// iterate over all of the coordinators of this member
+								for (otherC in runningEnsembles[m].keySet()) {
+									// iterate over all the ensembles different than the one to be created (e)
+									for (otherE in runningEnsembles[m][otherC]?.keySet().grep({it != e})) {
+										// if the current has higher priority then remove the other one
+										if (e.priority(otherE)) {											
+											def otherEActor = runningEnsembles.get(m)?.get(otherC)?.get(otherE)											
+											toStop.add([ensemble: otherE, actor: otherEActor, coordinator: otherC])
+										} else {
+											hasHighestPriority = false
+										}																																		
 									}
+								}									
+								
+									
+								if (hasHighestPriority && runningEnsembles[m][c][e] == null) {
+									System.out.println("Creating ensemble ${e.id}: c=${cd.id}, m=${md.id}");
+									def ea = createEnsembleActor(e, c, m, cd, md)									
+									runningEnsembles[m][c][e] = ea
+									
+									if (!toStop.empty) {										
+										// if stopping some of the ensembles, the new one has to wait for all the previous ones to stop
+										toStop.each {										
+											def ocd = componentData[it.coordinator]
+											System.out.println("Removing ensemble ${it.ensemble.id}: c=${ocd.id}, m=${md.id} because of ${e.id}");
+											runningEnsembles[m][it.coordinator].keySet().remove(it.ensemble)
+											// instruct the old ensemble to notify the new one
+											it.actor.stopEnsemble()										
+										}
+										toStop.collect({it.actor})*.join()
+									}									
+									ea.start()
+								} else {
+									assert toStop.empty 
+								}
+							} else {
+								if (runningEnsembles.get(m)?.get(c)?.get(e) != null) {
+									System.out.println("Removing ensemble ${e.id}");
+									runningEnsembles.get(m)?.get(c)?.get(e)?.stopEnsemble()
+									runningEnsembles.get(m)?.get(c)?.remove(e)
 								}
 							}
-						}
+						}			
 					}
 				}
 			}
 		}
 	}
 	
-	def hasInterface(Map c, List i) {
+	def hasInterface(Map c, Map i) {
 		if (c!= null && i != null) {						
-			return c.keySet().containsAll(i.toSet())
+			return c.keySet().containsAll(i.read.toSet() + i.write.toSet())
 		} else
 			return false
 	}
@@ -157,18 +171,16 @@ class Framework extends DefaultActor {
 		return startedActors
 	}
 	
-	private def runEnsemble(Map e, KnowledgeActor coordinator, KnowledgeActor member, Map initCoordinatorData, Map initMemberData) {
-		def actor = new EnsembleActor(
+	private def createEnsembleActor(Map e, KnowledgeActor coordinator, KnowledgeActor member, Map initCoordinatorData, Map initMemberData) {
+		return new EnsembleActor(
 			id: e.id, 
-			mapping: e.mapping,
-			coordinatorInterface: e.coordinator,
-			memberInterface: e.member,
+			member2coordinator: e.member2coordinator,
+			coordinator2member: e.coordinator2member,
+			coordinatorInterface: e.coordinator.read,
+			memberInterface: e.member.read,
 			coordinatorKnowledge: coordinator,
-			memberKnowledge: member,
-			coordinatorData: initCoordinatorData,
-			memberData: initMemberData,
-		).start()
-		return actor		
+			memberKnowledge: member,			
+		)				
 	}
 	
 	
