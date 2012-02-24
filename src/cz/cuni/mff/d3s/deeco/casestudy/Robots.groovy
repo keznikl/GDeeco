@@ -1,10 +1,14 @@
+package cz.cuni.mff.d3s.deeco.casestudy
+import cz.cuni.mff.d3s.deeco.framework.Framework;
+import cz.cuni.mff.d3s.deeco.framework.IProcess;
+import cz.cuni.mff.d3s.deeco.framework.SchedType;
 import actors.*
 import Framework.*
 import groovyx.gpars.actor.Actor
 
 
 
-class IPosition {
+public class IPosition {
     def x
     def y
 	public String toString() { return "IPos[$x, $y]" }

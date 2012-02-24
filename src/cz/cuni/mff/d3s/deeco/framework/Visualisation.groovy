@@ -1,3 +1,4 @@
+package cz.cuni.mff.d3s.deeco.framework
 import groovy.swing.SwingBuilder
 import java.util.List;
 import javax.swing.BorderFactory

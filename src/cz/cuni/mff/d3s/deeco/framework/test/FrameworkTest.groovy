@@ -1,3 +1,6 @@
+package cz.cuni.mff.d3s.deeco.framework.test
+
+import cz.cuni.mff.d3s.deeco.casestudy.IPosition
 
 class FrameworkTest extends GroovyTestCase {
 	void testDeepEqualsList() {
