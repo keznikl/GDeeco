@@ -3,8 +3,10 @@ import java.util.List;
 import java.util.Map;
 
 
+import cz.cuni.mff.d3s.deeco.framework.Ensemble;
 import cz.cuni.mff.d3s.deeco.framework.Framework;
 import cz.cuni.mff.d3s.deeco.framework.IProcess;
+import cz.cuni.mff.d3s.deeco.framework.Interface
 import cz.cuni.mff.d3s.deeco.framework.SchedType;
 
 
@@ -72,10 +74,20 @@ def robot2 = [
 
 
 
-def IRobot = [read: ["id"], write: ["nextPosition"]]
-def IRobotDrive = [read: ["id", "nextPositionAlongPath"], write: [] ]
+def IRobot = new Interface(
+	read: [
+		id:null], 
+	write: [
+		nextPosition:null]
+)
+def IRobotDrive = new Interface(
+	read: [
+		id:null, 
+		nextPositionAlongPath:null], 
+	write: [:] 
+)
 
-def robotEnsemble = [
+def robotEnsemble = new Ensemble(
 	id: "robotEnsemble",
 	coordinator: IRobotDrive,
 	member: IRobot,
@@ -89,7 +101,7 @@ def robotEnsemble = [
 		return [nextPosition: coordinator.nextPositionAlongPath.clone()]
 	},	
 	priority: {other -> false}
-]
+)
 
 def CrossingDriveF(robots, area) {
 	def nextpos = [:]
@@ -126,10 +138,26 @@ def positionInArea(IPosition position, List area) {
 	}
 	return false
 }
-def ICrossing = [read: ["nextPositions", "robots", "area"], write: ["robots"]]
-def ICrossingRobot = [read:["id", "position", "path"], write: ["nextPosition"]]
 
-def crossingEnsemble = [
+
+def ICrossing = new Interface(
+	read: [
+		nextPositions:null, 
+		robots:null, 
+		area:null], 
+	write: [
+		robots:null]
+)
+def ICrossingRobot = new Interface(
+	read: [
+		id:null, 
+		position:null, 
+		path:null], 
+	write: [
+		nextPosition:null]
+)
+
+def crossingEnsemble =  new Ensemble(
 	id: "crossingEnsemble",
 	coordinator: ICrossing,
 	member: ICrossingRobot,
@@ -149,7 +177,7 @@ def crossingEnsemble = [
 		return memberResult
 	},
 	priority: {other -> true}	
-]
+)
 
 
 def f = new Framework()

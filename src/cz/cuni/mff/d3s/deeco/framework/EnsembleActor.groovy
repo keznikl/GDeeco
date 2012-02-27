@@ -6,14 +6,16 @@ import groovyx.gpars.actor.DefaultActor;
 import java.util.List;
 import java.util.Map;
 
+import com.sun.xml.internal.bind.v2.runtime.Coordinator;
+
 
 
 class EnsembleActor extends DefaultActor {
 	def id = ""
 	def Closure member2coordinator
 	def Closure coordinator2member
-	def List coordinatorInterface
-	def List memberInterface
+	def Interface coordinatorInterface
+	def Interface memberInterface
 	def KnowledgeActor coordinatorKnowledge
 	def KnowledgeActor memberKnowledge
 	
@@ -24,9 +26,15 @@ class EnsembleActor extends DefaultActor {
 	def boolean unregisteredCoordinator = false
 	
 
+	
+	
 	public void afterStart() {
-		coordinatorKnowledge.send new RegisterMsg(actor: this, fields: coordinatorInterface)
-		memberKnowledge.send new RegisterMsg(actor: this, fields: memberInterface)
+		coordinatorKnowledge.send new RegisterMsg(
+			actor: this, 
+			fields: coordinatorInterface.serializeForKnowledgeListener())
+		memberKnowledge.send new RegisterMsg(
+			actor: this, 
+			fields: memberInterface.serializeForKnowledgeListener())
 	}
 			
 	public void stopEnsemble() {
@@ -54,13 +62,13 @@ class EnsembleActor extends DefaultActor {
 					
 					// comparisons have to be based on interfaces 
 					// (for cases where the member and coordinator is the same component)
-					if (component.keySet().equals(coordinatorInterface.toSet())) {
+					if (coordinatorInterface.isReadRefinedBy(component)) {
 						coordinatorData = component
-						memberData = memberKnowledge.sendAndWait new ReqDataMessage(fields: memberInterface)
+						memberData = memberKnowledge.sendAndWait new ReqDataMessage(fields: memberInterface.serializeForKnowledgeListener())
 						fromCoordinator = true
-					} else if (component.keySet().equals(memberInterface.toSet())) {
+					} else if (memberInterface.isReadRefinedBy(component)) {
 						memberData = component
-						coordinatorData = coordinatorKnowledge.sendAndWait new ReqDataMessage(fields: coordinatorInterface)
+						coordinatorData = coordinatorKnowledge.sendAndWait new ReqDataMessage(fields: coordinatorInterface.serializeForKnowledgeListener())
 					} else {
 						System.err.println("Unknown interface of the component: $component");
 						return

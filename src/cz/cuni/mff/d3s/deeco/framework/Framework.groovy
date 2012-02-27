@@ -25,9 +25,9 @@ class IProcess {
 
 class Framework extends DefaultActor {
 	def visualisation
-	def List ensembles = []
+	def List<Ensemble> ensembles = []
 	def Map runningEnsembles = [:]
-	def List components = []
+	def List<KnowledgeActor> components = []
 	def Map componentData = [:]
 	def inMapping = ["root"]
 	
@@ -58,7 +58,7 @@ class Framework extends DefaultActor {
 							def cd = componentData[c]
 							def md = componentData[m]									
 							
-							if (hasInterface(cd, e.coordinator) && hasInterface(md, e.member) && e.membership(cd, md)) {
+							if ((e.coordinator as Interface).isRefinedBy(cd) && (e.member as Interface).isRefinedBy(md) && e.membership(cd, md)) {
 								if (runningEnsembles[m] == null)
 									runningEnsembles[m] = [:]
 								if (runningEnsembles[m][c] == null)
@@ -116,12 +116,7 @@ class Framework extends DefaultActor {
 		}
 	}
 	
-	def hasInterface(Map c, Map i) {
-		if (c!= null && i != null) {						
-			return c.keySet().containsAll(i.read.toSet() + i.write.toSet())
-		} else
-			return false
-	}
+	
 	
 	def runComponents(List c) {
 		def startedActors = []
@@ -171,20 +166,20 @@ class Framework extends DefaultActor {
 		return startedActors
 	}
 	
-	private def createEnsembleActor(Map e, KnowledgeActor coordinator, KnowledgeActor member, Map initCoordinatorData, Map initMemberData) {
+	private def createEnsembleActor(Ensemble e, KnowledgeActor coordinator, KnowledgeActor member, Map initCoordinatorData, Map initMemberData) {
 		return new EnsembleActor(
 			id: e.id, 
 			member2coordinator: e.member2coordinator,
 			coordinator2member: e.coordinator2member,
-			coordinatorInterface: e.coordinator.read,
-			memberInterface: e.member.read,
+			coordinatorInterface: e.coordinator,
+			memberInterface: e.member,
 			coordinatorKnowledge: coordinator,
 			memberKnowledge: member,			
 		)				
 	}
 	
 	
-	def registerEnsemble(Map e) {
+	def registerEnsemble(Ensemble e) {
 		ensembles.add(e)
 	}
 	
