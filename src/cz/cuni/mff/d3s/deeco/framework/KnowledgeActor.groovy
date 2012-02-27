@@ -7,7 +7,7 @@ import groovyx.gpars.actor.DefaultActor;
 import java.util.List;
 import java.util.Map;
 
-class KnowledgeActor extends DefaultActor {
+public class KnowledgeActor extends DefaultActor {
 	def name
 	def knowledge
 	def List listeners = []

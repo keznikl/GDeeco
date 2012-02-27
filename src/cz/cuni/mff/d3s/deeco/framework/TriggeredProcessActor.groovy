@@ -4,7 +4,7 @@ import groovyx.gpars.actor.DefaultActor;
 
 import java.util.List;
 
-class TriggeredProcessActor extends DefaultActor {
+public class TriggeredProcessActor extends DefaultActor {
 	def func
 	def List inMapping
 	def List outMapping
