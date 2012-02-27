@@ -26,7 +26,7 @@ class IProcess {
 class Framework extends DefaultActor {
 	def visualisation
 	def List<Ensemble> ensembles = []
-	def Map runningEnsembles = [:]
+	def List<EnsembleInstance> runningEnsembles = []
 	def List<KnowledgeActor> components = []
 	def Map componentData = [:]
 	def inMapping = ["root"]
@@ -41,6 +41,13 @@ class Framework extends DefaultActor {
 	public void afterStart() {
 		components*.send new RegisterMsg(actor: this, fields: inMapping)
 		components*.send new RegisterMsg(actor: visualisation, fields: visualisation.inMapping)		
+	}
+	
+	private class EnsembleInstance {
+		KnowledgeActor coordinator
+		KnowledgeActor member
+		Ensemble ensemble
+		EnsembleActor ensembleActor
 	}
 	
 	void act() {
@@ -58,56 +65,68 @@ class Framework extends DefaultActor {
 							def cd = componentData[c]
 							def md = componentData[m]									
 							
-							if ((e.coordinator as Interface).isRefinedBy(cd) && (e.member as Interface).isRefinedBy(md) && e.membership(cd, md)) {
-								if (runningEnsembles[m] == null)
-									runningEnsembles[m] = [:]
-								if (runningEnsembles[m][c] == null)
-									runningEnsembles[m][c] = [:]
+							EnsembleInstance eInstance = runningEnsembles.find {it.coordinator == c && it.member == m && it.ensemble == e}
+							
+							if (e.coordinator.isRefinedBy(cd) && e.member.isRefinedBy(md) && e.membership(cd, md)) {
+							
+								// already running?
+								if (eInstance != null)
+									return
 									
-								def toStop = []
+								// there is another ensemble of the same type with the same member but different coordinator running
+								// in that case, they have to be mutually excluded => we choose the old one to be preserved
+								if (!runningEnsembles.findAll {it.member == m && it.ensemble == e && it.coordinator!=c}.empty)
+									return
+																									
+								List<EnsembleInstance> toStop = []
 								def hasHighestPriority = true
 								
-								// iterate over all of the coordinators of this member
-								for (otherC in runningEnsembles[m].keySet()) {
-									// iterate over all the ensembles different than the one to be created (e)
-									for (otherE in runningEnsembles[m][otherC]?.keySet().grep({it != e})) {
-										// if the current has higher priority then remove the other one
-										if (e.priority(otherE)) {											
-											def otherEActor = runningEnsembles.get(m)?.get(otherC)?.get(otherE)											
-											toStop.add([ensemble: otherE, actor: otherEActor, coordinator: otherC])
-										} else {
-											hasHighestPriority = false
-										}																																		
+								// iterate over all of the conflicting instances 
+								// (i.e. those with different ensemble type)
+								List<EnsembleInstance> conflictingInstances = runningEnsembles.findAll {it.member == m && it.ensemble != e} 
+								for (EnsembleInstance conflictingInstance in conflictingInstances) {
+									// if the current ensemble type has higher priority then remove the previous one
+									if (e.priority(conflictingInstance.ensemble)) {										
+										toStop.add(conflictingInstance)
+									} else {
+										hasHighestPriority = false
 									}
-								}									
-								
+								}
 									
-								if (hasHighestPriority && runningEnsembles[m][c][e] == null) {
+								if (hasHighestPriority) {
 									System.out.println("Creating ensemble ${e.id}: c=${cd.id}, m=${md.id}");
 									def ea = createEnsembleActor(e, c, m, cd, md)									
-									runningEnsembles[m][c][e] = ea
+									runningEnsembles.add(new EnsembleInstance(
+										coordinator: c,
+										member: m,
+										ensemble: e,
+										ensembleActor: ea))									
 									
 									if (!toStop.empty) {										
 										// if stopping some of the ensembles, the new one has to wait for all the previous ones to stop
-										toStop.each {										
+										toStop.each { 										
 											def ocd = componentData[it.coordinator]
 											System.out.println("Removing ensemble ${it.ensemble.id}: c=${ocd.id}, m=${md.id} because of ${e.id}");
-											runningEnsembles[m][it.coordinator].keySet().remove(it.ensemble)
+											runningEnsembles.remove(it)
 											// instruct the old ensemble to notify the new one
-											it.actor.stopEnsemble()										
+											it.ensembleActor.stopEnsemble()										
 										}
-										toStop.collect({it.actor})*.join()
+										toStop.collect({it.ensembleActor})*.join()
 									}									
 									ea.start()
 								} else {
 									assert toStop.empty 
 								}
-							} else {
-								if (runningEnsembles.get(m)?.get(c)?.get(e) != null) {
+							} else { 
+								// the membership predicate does not hold (or the components do not have the required interface)
+							
+								// 	already running?
+								if (eInstance != null) {
 									System.out.println("Removing ensemble ${e.id}");
-									runningEnsembles.get(m)?.get(c)?.get(e)?.stopEnsemble()
-									runningEnsembles.get(m)?.get(c)?.remove(e)
-								}
+									runningEnsembles.remove(eInstance)
+									eInstance.ensembleActor.stopEnsemble()
+									eInstance.ensembleActor.join()									
+								}								
 							}
 						}			
 					}
