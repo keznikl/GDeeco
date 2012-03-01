@@ -12,7 +12,7 @@ import java.awt.Color;
 import java.awt.GridLayout;
 
 enum SchedType {PROCESS_PERIODIC, PROCESS_TRIGGERED}
-class IProcess {
+public class IProcess {
 	SchedType schedType
 	Closure func
 	List inMapping = []
@@ -23,7 +23,7 @@ class IProcess {
 }
 
 
-class Framework extends DefaultActor {
+public class Framework extends DefaultActor {
 	def visualisation
 	def List<Ensemble> ensembles = []
 	def List<EnsembleInstance> runningEnsembles = []

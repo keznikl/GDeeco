@@ -124,15 +124,7 @@ public class KnowledgeActor extends DefaultActor {
 				changed.add(changedKey)
 		}
 			
-//		for (key in changeSet.keySet()) {
-//						
-//			if (!deepEquals(k[key], changeSet[key])) {
-//				knowledge[key] = deepClone(changeSet[key])				
-//				changed.add(key)				
-//				System.out.println("[${knowledge.id}]: $key = ${changeSet[key]}");
-//			}
-//		}
-		 
+
 		if (changed != []) {
 			def toNotify = listeners.findAll { KnowledgeListener l ->
 				l.fields == ["root"] || !l.fields.disjoint(changed)

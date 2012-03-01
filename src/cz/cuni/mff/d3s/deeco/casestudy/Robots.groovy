@@ -10,11 +10,18 @@ import cz.cuni.mff.d3s.deeco.framework.Interface
 import cz.cuni.mff.d3s.deeco.framework.SchedType;
 
 
-import actors.*
-import Framework.*
-import groovyx.gpars.actor.Actor
+/* Robot Component */
 
-
+/**
+ * Step function of a robot. 
+ * Moves the robot to the next position. If the robot reached the first 
+ * position in the path to go, then the path is updated (the reached 
+ * position is removed).
+ * 
+ * @param nextPosition	next position the robot should move to
+ * @param path			remaining path to go
+ * @return				[updated actual position, (potentially) updated path to go]
+ */
 def RobotStepF(IPosition nextPosition, List path) {
 	def retpath = path
 	if ((!path.empty) && nextPosition.equals(path.first()))
@@ -22,25 +29,43 @@ def RobotStepF(IPosition nextPosition, List path) {
 	return [nextPosition.clone(), retpath]
 }
 
+/**
+ * Function driving a robot along its prescribed path by setting its next position.
+ *  
+ * @param path			the prescribed path of the robot
+ * @param nextPosition	the expected next position of the robot
+ * @return				[updated next position]
+ */
 def RobotDriveF(List path, IPosition nextPosition) {
 	if (!path.empty)
 		return [path.first().clone()]
 }
 
 
-def r1Path = waypointsToPath([new IPosition(x: 1, y: 9), new IPosition(x: 12, y: 9)]) 
+/** Path of the first robot including its initial position */
+def r1Path = waypointsToPath([new IPosition(x: 1, y: 9), new IPosition(x: 12, y: 9)])
+
+/** 
+ * Definition of the first robot.
+ * The robot is supposed to move according its prescribed path.
+ * The step process moves the robot according to the nextPosition field. 
+ * The drive process sets the nextPositionAlongPath field
+ * according to the prescribed path.   
+ * Value of nextPositionAlongPath is intended to be copied to nextPosition 
+ * using an ensemble (see below).
+ */
 def robot = [
     id: "R1",
-    position: r1Path.first() ,
-	nextPosition: r1Path[1],	
-	nextPositionAlongPath: r1Path[1],
-    path: r1Path.drop(1), 
+    position: r1Path.first() ,					/* current position */
+	nextPosition: r1Path[1],					/* expected position after the next step */
+	nextPositionAlongPath: r1Path[1],			/* expected nextPosition according to the prescribed path*/
+    path: r1Path.drop(1), 						/* prescribed path of the robot */
 	processes: [		
 		drive: new IProcess(
-			schedType: SchedType.PROCESS_TRIGGERED,
-			func: this.&RobotDriveF,
-			inMapping: ["path", "nextPosition"], 
-			outMapping: ["nextPositionAlongPath"]),		
+			schedType: SchedType.PROCESS_TRIGGERED,		/* the process is triggered by changes of its input knowledge */
+			func: this.&RobotDriveF,					/* the function assigned to the process */ 
+			inMapping: ["path", "nextPosition"], 		/* the process reads fields path and nextPosition */
+			outMapping: ["nextPositionAlongPath"]),		/* the process writes the nextPositionAlongPath field */
 		step: new IProcess(
 			schedType: SchedType.PROCESS_PERIODIC,
 			func: this.&RobotStepF,
@@ -50,6 +75,7 @@ def robot = [
 	]
 ]
 
+/* The second robot differs only in path, initial position, and sleetTime of the step process. */
 def r2Path = waypointsToPath([new IPosition(x: 6, y: 4), new IPosition(x: 6, y: 12)])
 def robot2 = [
 	id: "R2",
@@ -73,13 +99,29 @@ def robot2 = [
 ]
 
 
+/* Robot Ensemble */
 
+/* interfaces for the robot ensemble */
+
+/*
+ * an interface is a map with two fields read and write each of them containing
+ * again a map which gives the required structure of the component's knowledge 
+ * to be read/written (all the values are null).
+ */
+
+/**
+ * Interface that allows setting the next position to move to.
+ */
 def IRobot = new Interface(
 	read: [
 		id:null], 
 	write: [
 		nextPosition:null]
 )
+
+/**
+ * Interface that gives the next position to move to according to the prescribed path. 
+ */
 def IRobotDrive = new Interface(
 	read: [
 		id:null, 
@@ -87,6 +129,29 @@ def IRobotDrive = new Interface(
 	write: [:] 
 )
 
+/*
+ * An ensemble consists of the following fields:
+ *  id: id of the ensemble definition (for visualisation and logging)
+ *  coordinator: interface of the coordinator component
+ *  member: interface of a member component
+ *    
+ *  membership: a function determining whether the given member and coordinator
+ *              should form an ensemble, returns boolean
+ *  member2coordinator: ensemble dataflow from meber to coordinator, 
+ *                      returns [coordinatorUpdates]
+ *  coordinator2member: ensemble dataflow from coordinator to member, 
+ *  				    returns [memberUpdates]
+ *  priority: compares the given ensemble to the current one, returns true 
+ *            iff the current has higher priority   
+ */
+
+/**
+ * The ensemble is always formed by a single robot with itself.
+ * It copies the value of nextPositionAlongPath to nextPosition and thus
+ * it effectively drives the robot along the prescribed path.
+ * Has the lowest priority (priority closure always returns false), thus
+ * is active only if no other ensemble is active for this robot. 
+ */
 def robotEnsemble = new Ensemble(
 	id: "robotEnsemble",
 	coordinator: IRobotDrive,
@@ -102,6 +167,8 @@ def robotEnsemble = new Ensemble(
 	},	
 	priority: {other -> false}
 )
+
+/* Crossing Component */
 
 def CrossingDriveF(robots, area) {
 	def nextpos = [:]
@@ -195,7 +262,7 @@ actors*.join()
  * Robot helper code
  */
 
-public class IPosition {
+class IPosition {
 	def x
 	def y
 	public String toString() { return "IPos[$x, $y]" }

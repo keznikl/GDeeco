@@ -21,13 +21,6 @@ class EnsembleActor extends DefaultActor {
 	
 	
 	
-	
-	def boolean unregisteredMember = false
-	def boolean unregisteredCoordinator = false
-	
-
-	
-	
 	public void afterStart() {
 		coordinatorKnowledge.send new RegisterMsg(
 			actor: this, 

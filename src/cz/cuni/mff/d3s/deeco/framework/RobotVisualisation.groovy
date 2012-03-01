@@ -1,5 +1,5 @@
 package cz.cuni.mff.d3s.deeco.framework
-import cz.cuni.mff.d3s.deeco.casestudy.IPosition
+
 import groovy.swing.SwingBuilder
 import java.util.List;
 
@@ -214,7 +214,7 @@ public class RobotVisualisation extends TriggeredProcessActor {
 	}
 	
 	def getOnScreenPosition(x, y) {
-		return new IPosition(x: x*fieldSize , y: y*fieldSize)
+		return new VisualPosition(x: x*fieldSize , y: y*fieldSize)
 	}
 	
 	def addRobotAnimation(obj, tooltip) {
@@ -242,16 +242,16 @@ public class RobotVisualisation extends TriggeredProcessActor {
 		}
 	}
 	
-	private class IPosition {
-		def x
-		def y
+	private class VisualPosition {
+		double x
+		double y
 		public String toString() { return "IPos[$x, $y]" }
 		public int hashCode() { return 1000*x + y}
-		public boolean equals(IPosition p) {
+		public boolean equals(VisualPosition p) {
 			this.hashCode() == p.hashCode()
 		}
 		public clone() {
-			return new IPosition(x:x, y:y)
+			return new VisualPosition(x:x, y:y)
 		}
 	}
 	
