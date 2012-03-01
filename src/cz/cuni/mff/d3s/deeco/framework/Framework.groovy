@@ -1,5 +1,5 @@
 package cz.cuni.mff.d3s.deeco.framework
-import Visualisation;
+import RobotVisualisation;
 import groovy.lang.Closure;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +34,7 @@ class Framework extends DefaultActor {
 	public Framework() {
 		super()					
 	
-		visualisation = new Visualisation()
+		visualisation = new RobotVisualisation()
 		
 	}
 	
