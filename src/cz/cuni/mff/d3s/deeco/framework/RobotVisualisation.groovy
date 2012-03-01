@@ -102,6 +102,8 @@ public class RobotVisualisation extends TriggeredProcessActor {
 		
 				syncAct.send "JFX_START"					
 			}
+			// After the window is closed, terminate the whole app
+			System.exit(0)
 		}
 		
 		syncAct.join()
@@ -139,20 +141,26 @@ public class RobotVisualisation extends TriggeredProcessActor {
 		
 		if (isNew) {
 			Node rect = sg.group{
-				stackPane(padding: new Insets(0)) {
-					rectangle(width: robotSize, height: robotSize,
+				def sp = stackPane {
+					def rect = rectangle(width: robotSize, height: robotSize,
 						arcWidth: arcWidth/2, arcHeight: arcHeight/2,
-						fill: Color.LIGHTGREEN, stroke: Color.BLACK, strokeWidth: strokeWidth)
-					Label lbl = label(text: rid, alignment: Pos.CENTER)				
+						fill: Color.LIGHTGREEN, stroke: Color.BLACK, strokeWidth: strokeWidth)					
+					label(text: rid, alignment: Pos.CENTER)				
 					translate(x:(fieldSize-robotSize)/2 - 1, y:(fieldSize-robotSize)/2-1)
+					DropShadow ds = new DropShadow(offsetX: 1.0, offsetY: 1.0, color: Color.BLACK);
+					rect.setEffect(ds)
+				}				
+				def lbl = stackPane {
+					rectangle(width: 100, height: 30, arcWidth: 20, arcHeight: 20,
+						fill: Color.BLACK, opacity: 0.6)
+					label (width: 100, height: 30, text: "Knowledge: ${robot.id}", textFill:Color.WHITE)						
+					translate(x:robotSize+ 5, y:robotSize+5)
 				}
-				stackPane(padding: new Insets(0)) {
-					rectangle(fill: Color.DARKGRAY)
-					label (text: "Knowledge: " + robot)						
-					translate(x:robotSize+ 2, y:robotSize+2)
-				}
+				
+				addRobotAnimation(sp, lbl)
+				
 			}
-			addBounceAnimation(rect)
+			
 			root.getChildren().add(rect)			
 			robots[rid] = rect			
 		} 
@@ -209,7 +217,8 @@ public class RobotVisualisation extends TriggeredProcessActor {
 		return new IPosition(x: x*fieldSize , y: y*fieldSize)
 	}
 	
-	def addBounceAnimation(obj) {
+	def addRobotAnimation(obj, tooltip) {
+		
 		def scaleUp = new ScaleTransition (Duration.millis(200), obj);
 		scaleUp.setToX(1.2)
 		scaleUp.setToY(1.2)
@@ -222,10 +231,30 @@ public class RobotVisualisation extends TriggeredProcessActor {
 		obj.onMouseEntered = new EventHandler<MouseEvent>() {
 			public void handle(final MouseEvent e) {
 				if (e.getEventType() == e.MOUSE_ENTERED)
-					sequentialTransition.play()
+					sequentialTransition.play()					
+			}
+		}		
+		obj.onMouseClicked = new EventHandler<MouseEvent>() {
+			public void handle(final MouseEvent e) {
+				if (e.getEventType() == e.MOUSE_CLICKED)
+					tooltip.visible = !tooltip.visible
 			}
 		}
 	}
+	
+	private class IPosition {
+		def x
+		def y
+		public String toString() { return "IPos[$x, $y]" }
+		public int hashCode() { return 1000*x + y}
+		public boolean equals(IPosition p) {
+			this.hashCode() == p.hashCode()
+		}
+		public clone() {
+			return new IPosition(x:x, y:y)
+		}
+	}
+	
 	
 }
 

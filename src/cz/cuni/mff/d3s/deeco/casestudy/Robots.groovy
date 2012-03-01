@@ -28,7 +28,7 @@ def RobotDriveF(List path, IPosition nextPosition) {
 }
 
 
-def r1Path = waypointsToPath([new IPosition(x: 2, y: 9), new IPosition(x: 12, y: 9)]) 
+def r1Path = waypointsToPath([new IPosition(x: 1, y: 9), new IPosition(x: 12, y: 9)]) 
 def robot = [
     id: "R1",
     position: r1Path.first() ,
@@ -68,7 +68,7 @@ def robot2 = [
 			func: this.&RobotStepF,
 			inMapping: ["nextPosition", "path"],
 			outMapping: ["position", "path"],
-			schedData: [sleepTime: 700]),
+			schedData: [sleepTime: 1000]),
 	]
 ]
 
