@@ -1,6 +1,6 @@
 package cz.cuni.mff.d3s.deeco.framework
 
-import KnowledgeListener;
+
 import groovyx.gpars.actor.Actor;
 import groovyx.gpars.actor.DefaultActor;
 
@@ -11,6 +11,24 @@ public class KnowledgeActor extends DefaultActor {
 	def name
 	def knowledge
 	def List listeners = []
+	
+	public static class ReqDataMessage {
+		def List fields
+	}
+	
+	public static class RegisterMsg {
+		Actor actor
+		List fields
+	}
+	public static class UnregisterAllMsg {
+		Actor actor
+	}
+	public static class UnregisterAllConfirmation{}
+	
+	public static class KnowledgeListener {
+		Actor actor
+		List fields
+	}
 	
 	void registerListener(KnowledgeListener l) {
 		listeners.add(l)
@@ -157,22 +175,7 @@ public class KnowledgeActor extends DefaultActor {
 			}
 		}
 	}
+	
+	
 }
 
-class ReqDataMessage {	
-	def List fields
-}
-
-class RegisterMsg {
-	Actor actor
-	List fields
-}
-class UnregisterAllMsg {
-	Actor actor
-}
-class UnregisterAllConfirmation{}
-
-class KnowledgeListener {
-	Actor actor
-	List fields
-}

@@ -4,6 +4,7 @@ import groovyx.gpars.actor.BlockingActor;
 
 import java.util.List;
 
+
 class PeriodicProcessActor extends BlockingActor{
 	def long sleepTime
 	def func
@@ -13,7 +14,7 @@ class PeriodicProcessActor extends BlockingActor{
 
 	void act() {
 		while (true) {
-			def args = knowledgeActor.sendAndWait new ReqDataMessage(fields: inMapping)
+			def args = knowledgeActor.sendAndWait new KnowledgeActor.ReqDataMessage(fields: inMapping)
 			def argList = []
 			for (key in inMapping)
 				argList.add(args[key])

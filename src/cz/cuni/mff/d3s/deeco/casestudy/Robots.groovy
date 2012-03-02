@@ -10,7 +10,7 @@ import cz.cuni.mff.d3s.deeco.framework.Interface
 import cz.cuni.mff.d3s.deeco.framework.SchedType;
 
 
-/* Robot Component */
+/* Robot Component ********************************************/
 
 /**
  * Step function of a robot. 
@@ -146,6 +146,8 @@ def IRobotDrive = new Interface(
  */
 
 /**
+ * Ensemble for driving a robot along its prescribed path.
+ * 
  * The ensemble is always formed by a single robot with itself.
  * It copies the value of nextPositionAlongPath to nextPosition and thus
  * it effectively drives the robot along the prescribed path.
@@ -156,33 +158,52 @@ def robotEnsemble = new Ensemble(
 	id: "robotEnsemble",
 	coordinator: IRobotDrive,
 	member: IRobot,
+	
+	/* The ensemble is formed only if both coordinator and member are the same component */
 	membership: {coordinator, member -> 
 		coordinator.id.toString().equals(member.id.toString())
 	},
+	
+	/* There is no data-flow from member to coordinator (coordinatorUpdate=return value is empty) */ 
 	member2coordinator: {coordinator, member ->
 		return [:]
 	},
+
+	/* Copies nextPositionAlongPath from coordinator to nextPosition in member. */	 
 	coordinator2member: {coordinator, member ->		
 		return [nextPosition: coordinator.nextPositionAlongPath.clone()]
 	},	
+
+	/* the ensemble has the lowest priority */
 	priority: {other -> false}
 )
 
-/* Crossing Component */
+/* Crossing Component *******************************************/
 
+/**
+ * The function drives the relevant robots through the crossing by influencing
+ * their nextPosition.
+ * 
+ * @param robots	the robots in the crossing
+ * @param area		the area of the crossing
+ * @return			list [nextPosition] for the robots
+ */
 def CrossingDriveF(robots, area) {
 	def nextpos = [:]
-	robots.each{String robotId, RobotInfo robotInfo->
-		//v.path = v.path.intersect(area)		
+	robots.each{String robotId, RobotInfo robotInfo->		
 		if (nobodyAtRightHand(robotInfo, robots, area))
 			continueRobot(robotId, robotInfo, nextpos)			
 		else
 			stopRobot(robotId, robotInfo, nextpos)
-	}
-	
+	}	
 	return [nextpos]
 }
 
+/** 
+ * Definition of the crossing component.
+ * 
+ * 
+ */
 crossing = [
 	id: "C1",
 	area: crossingArea(new IPosition(x: 4, y: 6), new IPosition(x: 9, y: 11)),
@@ -247,7 +268,7 @@ def crossingEnsemble =  new Ensemble(
 )
 
 
-def f = new Framework()
+def f = new Framework(new cz.cuni.mff.d3s.deeco.casestudy.RobotVisualisation())
 f.registerEnsemble(robotEnsemble)
 f.registerEnsemble(crossingEnsemble)
 def actors = f.runComponents([robot, robot2, crossing])

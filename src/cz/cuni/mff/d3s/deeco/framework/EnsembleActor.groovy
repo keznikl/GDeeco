@@ -10,6 +10,7 @@ import com.sun.xml.internal.bind.v2.runtime.Coordinator;
 
 
 
+
 class EnsembleActor extends DefaultActor {
 	def id = ""
 	def Closure member2coordinator
@@ -22,10 +23,10 @@ class EnsembleActor extends DefaultActor {
 	
 	
 	public void afterStart() {
-		coordinatorKnowledge.send new RegisterMsg(
+		coordinatorKnowledge.send new KnowledgeActor.RegisterMsg(
 			actor: this, 
 			fields: coordinatorInterface.serializeForKnowledgeListener())
-		memberKnowledge.send new RegisterMsg(
+		memberKnowledge.send new KnowledgeActor.RegisterMsg(
 			actor: this, 
 			fields: memberInterface.serializeForKnowledgeListener())
 	}
@@ -35,8 +36,8 @@ class EnsembleActor extends DefaultActor {
 	}
 	
 	private void processStopEnsembleMsg() {			
-		coordinatorKnowledge.sendAndWait new UnregisterAllMsg(actor: this)
-		memberKnowledge.sendAndWait new UnregisterAllMsg(actor: this)
+		coordinatorKnowledge.sendAndWait new KnowledgeActor.UnregisterAllMsg(actor: this)
+		memberKnowledge.sendAndWait new KnowledgeActor.UnregisterAllMsg(actor: this)
 		terminate()
 	}	
 	
@@ -57,11 +58,11 @@ class EnsembleActor extends DefaultActor {
 					// (for cases where the member and coordinator is the same component)
 					if (coordinatorInterface.isReadRefinedBy(component)) {
 						coordinatorData = component
-						memberData = memberKnowledge.sendAndWait new ReqDataMessage(fields: memberInterface.serializeForKnowledgeListener())
+						memberData = memberKnowledge.sendAndWait new KnowledgeActor.ReqDataMessage(fields: memberInterface.serializeForKnowledgeListener())
 						fromCoordinator = true
 					} else if (memberInterface.isReadRefinedBy(component)) {
 						memberData = component
-						coordinatorData = coordinatorKnowledge.sendAndWait new ReqDataMessage(fields: coordinatorInterface.serializeForKnowledgeListener())
+						coordinatorData = coordinatorKnowledge.sendAndWait new KnowledgeActor.ReqDataMessage(fields: coordinatorInterface.serializeForKnowledgeListener())
 					} else {
 						System.err.println("Unknown interface of the component: $component");
 						return

@@ -1,5 +1,5 @@
 package cz.cuni.mff.d3s.deeco.framework
-import RobotVisualisation;
+
 import groovy.lang.Closure;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +8,8 @@ import groovyx.gpars.actor.BlockingActor;
 import groovyx.gpars.actor.DefaultActor
 import javax.swing.JFrame;
 import javax.swing.JLabel
+
+
 import java.awt.Color;
 import java.awt.GridLayout;
 
@@ -24,23 +26,23 @@ public class IProcess {
 
 
 public class Framework extends DefaultActor {
-	def visualisation
+	def Actor visualisation
 	def List<Ensemble> ensembles = []
 	def List<EnsembleInstance> runningEnsembles = []
 	def List<KnowledgeActor> components = []
 	def Map componentData = [:]
 	def inMapping = ["root"]
 	
-	public Framework() {
+	public Framework(Actor vis) {
 		super()					
 	
-		visualisation = new RobotVisualisation()
+		visualisation = vis
 		
 	}
 	
 	public void afterStart() {
-		components*.send new RegisterMsg(actor: this, fields: inMapping)
-		components*.send new RegisterMsg(actor: visualisation, fields: visualisation.inMapping)		
+		components*.send new KnowledgeActor.RegisterMsg(actor: this, fields: inMapping)
+		components*.send new KnowledgeActor.RegisterMsg(actor: visualisation, fields: visualisation.inMapping)		
 	}
 	
 	private class EnsembleInstance {
@@ -163,7 +165,7 @@ public class Framework extends DefaultActor {
 					inMapping: pr.inMapping,
 					outMapping: pr.outMapping
 				)
-				k.registerListener([actor: pa, fields: pr.inMapping] as KnowledgeListener)
+				k.registerListener(new KnowledgeActor.KnowledgeListener(actor: pa, fields: pr.inMapping))
 				startedActors.add(pa)
 									
 			} else if (pr.schedType == SchedType.PROCESS_PERIODIC) {

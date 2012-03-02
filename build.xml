@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="GDEECo Robot Example" default="main" basedir=".">
+	<property environment="env"/>
+	<property name="src" value="${basedir}/src"/>
+	<property name="classes" value="${basedir}/classes"/>
+	
+	<property name="javafxhome" value="${env.JAVAFX_HOME}" />
+	<property name="groovyhome" value="${env.GROOVY_HOME}" />
+
+	<target name="clean" >
+		<mkdir dir="${classes}"/>
+		<delete>
+			<fileset dir="${classes}">
+			    <include name="**/*"/>	    
+			</fileset>
+		</delete>
+	</target>
+	
+	<!-- Compiles all the grovy scripts to class files -->
+	<target name="compile" depends="clean">
+		<taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc">
+			<classpath>
+				<fileset dir="${groovyhome}" includes="embeddable/groovy-all-*.jar,lib/ivy*.jar"/>
+			</classpath>
+		</taskdef>
+		<groovyc srcdir="${src}" destdir="${classes}" >
+			<classpath>			
+				<pathelement path="${classpath}"/>
+				<fileset dir="${javafxhome}/rt/lib">
+					<include name="*.jar"/>
+				</fileset>
+				<fileset dir="lib">
+					<include name="**/*.jar"/>
+				</fileset>	
+			</classpath>
+			<javac source="1.6" target="1.6" debug="on" />
+		</groovyc>
+	</target>
+	
+	<!-- Runs the Robots script as a regular java class.
+		 CRITICAL NOTE: has to be run using fork="true".
+	  -->
+	<target name="main" depends="compile">
+		<java classname="cz.cuni.mff.d3s.deeco.casestudy.Robots" fork="true">
+			<classpath>
+				<pathelement path="${classpath}" />
+				<fileset dir="${groovyhome}" includes="embeddable/groovy-all-*.jar,lib/*.jar"/>
+				<fileset dir="${javafxhome}/rt/lib" includes="*.jar" />									 
+				<fileset dir="lib" includes="*.jar"/>				
+				<pathelement location="${classes}" />				
+			</classpath>		
+		</java>
+	</target>
+</project>
