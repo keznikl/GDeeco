@@ -12,7 +12,6 @@ To compile and run the Robots demo including its visualisation, you need the fol
 * JavaFX SDK >= 2.0 ([http://javafx.com/]())
 * GroovyFX library >= 0.1 ([http://groovyfx.org/]())
 
-![](/doc/deeco.png)
 
 ## Running the Robot Demo
 To run the robot demo via `ant`, using the `main` task of the ensclosed `build.xml`. Do not forget to set the properties `javafxhome` and `groovyhome` accordingly.
@@ -20,6 +19,9 @@ To run the robot demo via `ant`, using the `main` task of the ensclosed `build.x
 As an alternative, run the script `cz.cuni.mff.d3s.deeco.casestudy.Robots.groovy` in your IDE as a regular groovy script with the classes from `cz.cuni.mff.d3s.deeco.framework` and the `GroovyFX` and `GPars` libraries on classpath.
 
 The appropriate versions of the `GroovyFX` and `GPars` libraries are already included in the lib directory.
+
+![](https://github.com/keznikl/GDeeco/raw/master/doc/deeco.png)
+
 
 #DEECo Component Model
 During the last few weeks,  in scope of the [ASCENS](http://www.ascens-ist.eu/) project we have been working on a  component model suitable for designing systems consisting of autonomous, self-aware, and adaptable components. The components, implicitly organized in groups called *ensembles*, live in a very dynamic environment where a component can enter/exit an ensemble at any time. 
