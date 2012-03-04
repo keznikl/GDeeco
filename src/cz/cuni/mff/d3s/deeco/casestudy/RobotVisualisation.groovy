@@ -34,18 +34,22 @@ import groovyx.gpars.actor.Actors;
 import groovyx.javafx.GroovyFX
 import groovyx.javafx.SceneGraphBuilder
 
+/**
+ * Helper class for visualisation of the Robot case study.
+ * Uses GroovyFX.
+ * 
+ * @author Keznikl
+ *
+ */
 public class RobotVisualisation extends TriggeredProcessActor {
 	def cols = 12
-	def rows = 12 
-	List textlabels = []
-	Map robotLabels = [:]
-	List groundLabels = []	
-	Set crossing = [] as Set
+	def rows = 12
 	
-	
+	Set crossing = [] as Set	
 	Map robots = [:]
 	Map sceneObjects = [:]
 	List floorObjects = []
+	
 	def fieldSize = 40
 	def robotSize = 30
 	def arcWidth = 20

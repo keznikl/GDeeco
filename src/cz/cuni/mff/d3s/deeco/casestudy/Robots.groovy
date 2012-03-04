@@ -47,6 +47,7 @@ def r1Path = waypointsToPath([new IPosition(x: 1, y: 9), new IPosition(x: 12, y:
 
 /** 
  * Definition of the first robot.
+ * 
  * The robot is supposed to move according its prescribed path.
  * The step process moves the robot according to the nextPosition field. 
  * The drive process sets the nextPositionAlongPath field
@@ -94,7 +95,7 @@ def robot2 = [
 			func: this.&RobotStepF,
 			inMapping: ["nextPosition", "path"],
 			outMapping: ["position", "path"],
-			schedData: [sleepTime: 1000]),
+			schedData: [sleepTime: 800]),
 	]
 ]
 
@@ -174,7 +175,7 @@ def robotEnsemble = new Ensemble(
 		return [nextPosition: coordinator.nextPositionAlongPath.clone()]
 	},	
 
-	/* the ensemble has the lowest priority */
+	/* The ensemble has the lowest priority */
 	priority: {other -> false}
 )
 
@@ -202,7 +203,14 @@ def CrossingDriveF(robots, area) {
 /** 
  * Definition of the crossing component.
  * 
- * 
+ * Computes the recommended values of the nextPosition field for the robots,
+ * which are in close perimeter to the crossing.
+ * The crossing uses the standard right-hand rule for the priorities of the robots.
+ * The relevant robot data are expected to appear in the robots collection, the resulting 
+ * nextPosition values are stored in the nextPositions collection.
+ * The drive process performs the computation of nextPositions.
+ * Since the framework may experiences race conditions when switching ensembles,
+ * the process is periodic rather than triggered.
  */
 crossing = [
 	id: "C1",
@@ -219,15 +227,11 @@ crossing = [
 	],
 ]
 
-def positionInArea(IPosition position, List area) {
-	for (p in area) {
-		if (p.equals(position))
-			return true		
-	}
-	return false
-}
-
-
+/**
+ * Interface of a crossing.
+ * Provides the nextPositions, area, and robots fields for reading, 
+ * and the robots collection for writing.
+ */
 def ICrossing = new Interface(
 	read: [
 		nextPositions:null, 
@@ -236,6 +240,11 @@ def ICrossing = new Interface(
 	write: [
 		robots:null]
 )
+
+/**
+ * Interface of a robot in a crossing.
+ * Provides its id, position and path for reading and nextPosition for writing.
+ */
 def ICrossingRobot = new Interface(
 	read: [
 		id:null, 
@@ -245,17 +254,32 @@ def ICrossingRobot = new Interface(
 		nextPosition:null]
 )
 
+/**
+ * Ensemble for driving a robot through a crossing according to its prescribed path.
+ * 
+ * The ensemble is formed between a crossing and the robots in its close perimeter.
+ * It copies the position and path fields of each robot into the crossing knowledge,
+ * and the nextPosition from crossing back to the robot.
+ * Thus, it effectively drives the robot through the crossing.
+ * Has the highest priority (priority closure always returns true), thus
+ * is active whenever the membership predicate holds. 
+ */
 def crossingEnsemble =  new Ensemble(
 	id: "crossingEnsemble",
 	coordinator: ICrossing,
 	member: ICrossingRobot,
+	/* The ensemble is formed whenever the robot is in the area of the crossing */
 	membership: {coordinator, member ->
 		positionInArea(member.position, coordinator.area)
 	},
+	
+	/* Copies the robot nextPosition and path to the robots collection on the crossing (indexed by the robot's id).	 */
 	member2coordinator: {coordinator, member ->
 		System.out.println("${member.id}->CROSSING");	
 		return ["robots.${member.id}": new RobotInfo(position: member.position, path: member.path).clone()]
 	},
+
+	/* Copies the nextPosition of the robot from the nextPositions collection of the crossing (indexed by the robot's id). */
 	coordinator2member: {coordinator, member ->
 		System.out.println("CROSSING->${member.id}");
 		def memberResult = [:]
@@ -264,26 +288,54 @@ def crossingEnsemble =  new Ensemble(
 		}				
 		return memberResult
 	},
+
+	/* The ensemble has the highest priority */
 	priority: {other -> true}	
 )
 
 
+
+/* Initialization of the DEECo framework and application startup **********************/
+
+/*
+ * Instantiate the framework class, it allows registering a knowledge listener
+ * listening to changes of all the components, which is useful for example for 
+ * implementing a visualization module (as in this case).
+ */
 def f = new Framework(new cz.cuni.mff.d3s.deeco.casestudy.RobotVisualisation())
+
+/* register all the defined ensembles */
 f.registerEnsemble(robotEnsemble)
 f.registerEnsemble(crossingEnsemble)
+
+/* 
+ * instantiate and run all the defined components, the method returns list 
+ * of actors which correspond to the started components
+ */
 def actors = f.runComponents([robot, robot2, crossing])
+
+/* start the component actors */
 actors*.start()
+
+/* start the framework (i.e., start observing component changes and creating ensembles) */
 f.start()
+
+/* wait for the component actors to stop */
 actors*.join()
 
 
 
 
-/* 
- * Robot helper code
- */
+/* Robot helper code *******************************************/
 
-class IPosition {
+/**
+ * A two-dimensional position of a robot.
+ * Implements clone and equals.
+ * 
+ * @author Keznikl
+ *
+ */
+public class IPosition {
 	def x
 	def y
 	public String toString() { return "IPos[$x, $y]" }
@@ -296,6 +348,12 @@ class IPosition {
 	}
 }
 
+/**
+ * Converts the given waypoints to a sequence of neigboring IPositions.
+ * 
+ * @param waypoints	waypoints to be converted
+ * @return			sequence of IPositions, conforming to the waypoints.
+ */
 def waypointsToPath(waypoints) {
 	def x
 	def y
@@ -318,8 +376,30 @@ def waypointsToPath(waypoints) {
 }
 
 
-/*
- * Crossing helper code
+/* Crossing helper code *******************************************/
+
+/**
+ * Decides if the given is in the area.
+ *
+ * @param position	position to be tested
+ * @param area		the are to be tested against (as a list of IPosition objects)
+ * @return			true iff the position is in the area.
+ */
+def positionInArea(IPosition position, List area) {
+	for (p in area) {
+		if (p.equals(position))
+			return true
+	}
+	return false
+}
+
+/**
+ * Information about a robot as stored by the crossing component.
+ * 
+ * Contains robot's position and part of its path relevant to the crossing area.
+ * 
+ * @author Keznikl
+ *
  */
 class RobotInfo {
 	IPosition position
@@ -338,6 +418,14 @@ class RobotInfo {
 	}
 }
 
+/**
+ * Creates a list of IPositions corresponding to the rectangle between 
+ * the given top-left and bottom-right points.
+ * 
+ * @param tl	top-left position of the area
+ * @param br	bottom-right position of the area
+ * @return		the rectangular area given by tl and br as a List of IPosition
+ */
 public def crossingArea(IPosition tl, IPosition br) {
 	def area = []
 	(tl.x..br.x).each { x->
@@ -348,7 +436,17 @@ public def crossingArea(IPosition tl, IPosition br) {
 	return area
 }
 
+/**
+ * Movement direction of a robot in a crossing.
+ */
 enum EDirection {UP, DOWN, LEFT, RIGHT, UNKNOWN}
+
+/**
+ * Returns the robot's direction according to its position and remaining path.
+ * 
+ * @param robot	RobotInfo of the robot
+ * @return		the movement direction of the robot
+ */
 def getDirection(RobotInfo robot) {
 	if (robot.path.size() == 0)
 		return EDirection.UNKNOWN
@@ -367,20 +465,56 @@ def getDirection(RobotInfo robot) {
 	if (dy<0) {
 		return EDirection.UP
 	}
+	
+	return EDirection.UNKNOWN
 }
 
+/**
+ * Returns True iff the robot is leaving the area in the next step
+ * @param r		the robot to be tested
+ * @param area	the area to be left by the robot
+ * @return		True iff the robot is leaving the area in the next step
+ */
 boolean isLeaving(RobotInfo r, area) {
 	((r.path.size() > 0) && (!positionInArea(r.path[0], area))) || ((r.path.size() > 1) && (!positionInArea(r.path[1], area)))
 }
+
+/**
+ * Returns True iff the robot has not the given direction.
+ * @param r	the robot
+ * @param d	the direction
+ * @return	True iff the robot has not the given direction
+ */
 boolean hasNotDirection(RobotInfo r, EDirection d) {
 	(getDirection(r) != d)
 }
+
+/**
+ * Returns True iff the given robot is in the middle of the crossing area.
+ * @param r		the robot
+ * @param area	the crossing area
+ * @return		True iff the given robot is in the middle of the crossing area
+ */
 boolean isInTheCrossing(RobotInfo r, area) {
 	def tl = new IPosition(x: area.first().x+2, y: area.first().y+2)
 	def br = new IPosition(x: area.last().x-2, y: area.last().y-2)
 	return positionInArea(r.position, crossingArea(tl, br))
 }
 
+/**
+ * Decides, wheter the given robot is allowed to enter the crossing.
+ * 
+ * The robot is allowed to enter, iff it is already in the middle of the crossing, 
+ * or it is leaving the crossing and thus cannot collide with the other robots,
+ * or all the other robots are either not in the crossing or are leaving and the given 
+ * robot has priority (there is no robot on its right).
+ * 
+ * @param robot		the robot to be decided upon
+ * @param robots	the other robots in the crossing
+ * @param area		area of the crossing
+ * @param d			the direction which the other robot cannot have in order for the given robot to have priority
+ * @return			True iff the robot is allowed to enter the crossing.
+ */
 boolean enterCondition(RobotInfo robot, Map robots, area, EDirection d) {
 	isInTheCrossing(robot, area) || isLeaving(robot, area) || robots.values().every({!isInTheCrossing(it, area) && (isLeaving(it, area) || hasNotDirection(it, d))})
 }
@@ -400,6 +534,16 @@ def nobodyAtRightHand(RobotInfo robot, Map robots, List area) {
 	return false
 }
 
+/**
+ * Moves the given robot along its prescribed path.
+ * 
+ * Sets the nextPosition of the robot.
+ * 
+ * @param robotId	the robot's id
+ * @param robotInfo	the robot's RobotInfo object
+ * @param nextpos	the current value of the nextPositions collections
+ * @return			the updated value of the nextPositions collections
+ */
 def continueRobot(String robotId, RobotInfo robotInfo, Map nextpos) {
 	if (robotInfo.position.equals(robotInfo.path.first())) {
 		nextpos[robotId] = new RobotInfo(position: robotInfo.path[1], path: robotInfo.path.drop(1)).clone()
@@ -408,6 +552,18 @@ def continueRobot(String robotId, RobotInfo robotInfo, Map nextpos) {
 	}
 }
 
+/**
+ * Enforces the robot to stay at its current position.
+ * 
+ * Does not include the robot in the nextPositions collections,
+ * therefore the robot's nextPosition is not updated and the robot stays
+ * at its current position.
+ * 
+ * @param robotId	the robot's id
+ * @param robotInfo	the robot's RobotInfo
+ * @param nextpos	the current value of the nextPositions collections
+ * @return			the unchanged value of the nextPositions collections
+ */
 def stopRobot(String robotId, RobotInfo robotInfo, Map nextpos) {
 	// just ignore the robot (i.e., do not set the nextpos)
 }

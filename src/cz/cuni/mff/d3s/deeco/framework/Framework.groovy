@@ -41,8 +41,14 @@ public class Framework extends DefaultActor {
 	}
 	
 	public void afterStart() {
-		components*.send new KnowledgeActor.RegisterMsg(actor: this, fields: inMapping)
-		components*.send new KnowledgeActor.RegisterMsg(actor: visualisation, fields: visualisation.inMapping)		
+		components*.send new KnowledgeActor.RegisterMsg(
+			actor: this, 
+			fields: inMapping)
+		
+		if (visualisation != null)
+			components*.send new KnowledgeActor.RegisterMsg(
+				actor: visualisation, 
+				fields: visualisation.inMapping)		
 	}
 	
 	private class EnsembleInstance {
