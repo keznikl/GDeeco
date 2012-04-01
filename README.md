@@ -26,7 +26,7 @@ The appropriate versions of the `GroovyFX` and `GPars` libraries are already inc
 #DEECo Component Model
 During the last few weeks,  in scope of the [ASCENS](http://www.ascens-ist.eu/) project we have been working on a  component model suitable for designing systems consisting of autonomous, self-aware, and adaptable components. The components, implicitly organized in groups called *ensembles*, live in a very dynamic environment where a component can enter/exit an ensemble at any time. 
 
-What we have ended up with is the **DEECo component model** (stands for Dependable Ensembles of Emergent Components). The goal of DEECo is to support development of applications in such a dynamic environment.
+What we have ended up with is the **DEECo component model** (stands for Dependable Emergent Ensembles of Components). The goal of DEECo is to support development of applications in such a dynamic environment.
 
 ##Robotic Playground Case Study
 In the current phases of design and prototyping, we use a case-study similar to the e-mobility case study in ASCENS - the robotic playground.

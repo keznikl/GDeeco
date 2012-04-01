@@ -164,8 +164,8 @@ public class RobotVisualisation extends TriggeredProcessActor {
 				}
 				
 				addRobotAnimation(sp, lbl)
-				
 			}
+			
 			
 			root.getChildren().add(rect)			
 			robots[rid] = rect			
