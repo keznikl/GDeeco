@@ -1,4 +1,7 @@
 <markdown>
+#This project is no loger maintained
+See https://github.com/d3scomp/JDEECo for further development of DEECo implementation.
+
 #Setup 
 ##Requirements
 To compile use the GDEECo framework, the following has to be available on your system:
